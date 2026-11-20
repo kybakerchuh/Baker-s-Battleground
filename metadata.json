@@ -1,0 +1,6 @@
+{
+  "name": "Baker's Battleground — Algebra 1 X-Method Roguelite",
+  "description": "Survive 10 escalating waves of Level 1–10 alien species, forge Tier 4 Sovereign Gold weapons, and solve quadratics via the X-Method.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

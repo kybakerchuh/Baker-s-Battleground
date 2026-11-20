@@ -1,0 +1,3617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Baker's Battleground — Algebra 1 X-Method Roguelite</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,500;0,700;1,700&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #06100d;
+      color: #ecfdf5;
+      font-family: 'Inter', sans-serif;
+    }
+    .font-display { font-family: 'Chakra Petch', sans-serif; }
+    .font-mono-code { font-family: 'JetBrains Mono', monospace; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #06100d; }
+    ::-webkit-scrollbar-thumb { background: #10b98166; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #10b981; }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 18px rgba(16, 185, 129, 0.25); }
+      50% { box-shadow: 0 0 36px rgba(251, 191, 36, 0.55); }
+    }
+    .glow-emerald { animation: pulseGlow 2.4s infinite ease-in-out; }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    /* Smooth touch scrolling for mobile Safari / WebViews */
+    #titleScreen, #mathModal, #upgradeModal, #pauseModal {
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      overscroll-behavior: contain;
+    }
+
+    /* Completely vertical stacked fractions */
+    .v-frac {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      vertical-align: middle;
+      line-height: 1.05;
+      margin: 0 3px;
+      text-align: center;
+    }
+    .v-frac-num {
+      border-bottom: 1.5px solid currentColor;
+      padding: 0 4px 2px 4px;
+      width: 100%;
+    }
+    .v-frac-den {
+      padding: 2px 4px 0 4px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body class="bg-[#06100d] text-emerald-50 relative overflow-hidden">
+
+  <!-- MAIN ARENA CANVAS -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- ========================================================= -->
+  <!-- TOP TACTICAL HUD                                          -->
+  <!-- ========================================================= -->
+  <div id="hudTop" class="hidden fixed top-0 left-0 right-0 z-20 pointer-events-none px-3 pt-2.5 sm:px-5 sm:pt-3 flex flex-col gap-2">
+    <div class="flex flex-wrap items-center justify-between gap-2 bg-[#0a1814]/92 backdrop-blur-md border border-emerald-500/35 rounded-2xl px-3.5 py-2 shadow-2xl pointer-events-auto">
+      
+      <!-- Left: Operative Portrait, Integrity Pips, HP & XP -->
+      <div class="flex items-center gap-3 min-w-[225px] sm:min-w-[295px]">
+        <div id="hudAvatar" class="w-12 h-12 rounded-xl bg-emerald-950 border border-emerald-400/50 flex items-center justify-center overflow-hidden shrink-0 shadow-inner"></div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between gap-1.5">
+            <span id="hudHeroName" class="font-display font-bold text-sm sm:text-base text-emerald-200 truncate">Ranger Nova</span>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <div id="hudLivesPips" class="flex items-center gap-0.5" title="5-Life Suit Integrity (20% Max HP lost per wrong answer or death)"></div>
+              <span id="hudLevelBadge" class="font-mono-code text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-400/40">LVL 1</span>
+            </div>
+          </div>
+          <!-- HP Bar -->
+          <div class="mt-1 w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-emerald-900/80 relative">
+            <div id="hudHpBar" class="h-full bg-gradient-to-r from-emerald-500 to-teal-300 transition-all duration-150" style="width: 100%"></div>
+            <span id="hudHpText" class="absolute inset-0 flex items-center justify-center text-[9px] font-mono-code font-bold text-white drop-shadow">115 / 115</span>
+          </div>
+          <!-- XP Bar -->
+          <div class="mt-1 w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-amber-900/60">
+            <div id="hudXpBar" class="h-full bg-gradient-to-r from-amber-500 to-yellow-300 transition-all duration-150" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center: Wave / 10, Timer, Breach Countdown & X-Accuracy -->
+      <div class="flex items-center gap-3 sm:gap-5 mx-auto">
+        <div class="text-center">
+          <div class="text-[10px] uppercase tracking-wider text-emerald-400/80 font-bold">Wave <span id="hudIntensityTag" class="text-cyan-300 font-mono-code">• MED</span></div>
+          <div id="hudWave" class="font-display font-bold text-lg sm:text-xl text-white leading-none">1 <span class="text-xs text-emerald-400">/ 10</span></div>
+        </div>
+        <div class="h-7 w-px bg-emerald-500/20"></div>
+        <div class="text-center">
+          <div class="text-[10px] uppercase tracking-wider text-amber-300/90 font-bold">Time Left</div>
+          <div id="hudTimer" class="font-mono-code font-extrabold text-lg sm:text-xl text-amber-300 leading-none">02:00</div>
+        </div>
+        <div class="h-7 w-px bg-emerald-500/20 hidden sm:block"></div>
+        <div class="hidden sm:block text-center">
+          <div class="text-[10px] uppercase tracking-wider text-cyan-300/80 font-bold">Next x² Breach</div>
+          <div id="hudNextBreach" class="font-mono-code font-bold text-sm text-cyan-300 leading-none">01:30</div>
+        </div>
+        <div class="h-7 w-px bg-emerald-500/20 hidden md:block"></div>
+        <div class="hidden md:block text-center">
+          <div class="text-[10px] uppercase tracking-wider text-emerald-300/80 font-bold">X-Accuracy</div>
+          <div id="hudAccuracy" class="font-mono-code font-bold text-sm text-emerald-300 leading-none">100%</div>
+        </div>
+      </div>
+
+      <!-- Right: Dash Pips, Scrap Gold, Aim Mode, Pause & Mute -->
+      <div class="flex items-center gap-2 sm:gap-2.5 ml-auto sm:ml-0">
+        <div class="flex flex-col items-end mr-1">
+          <span class="text-[9px] uppercase tracking-wider text-cyan-300/80 font-bold">Dashes</span>
+          <div id="hudDashPips" class="flex items-center gap-1 mt-0.5"></div>
+        </div>
+
+        <div class="flex items-center gap-1.5 bg-amber-500/15 border border-amber-400/40 rounded-xl px-2.5 py-1.5">
+          <span class="text-amber-400 text-sm">⬡</span>
+          <span id="hudGold" class="font-mono-code font-extrabold text-sm text-amber-300">30</span>
+        </div>
+
+        <button id="btnAimToggle" class="px-2.5 py-1.5 rounded-xl bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/40 text-xs font-bold text-emerald-200 transition cursor-pointer" title="Toggle Auto-Aim vs Manual Mouse Aim">
+          AIM: <span id="hudAimMode" class="text-amber-300">AUTO</span>
+        </button>
+
+        <button id="btnPauseToggle" class="p-2 rounded-xl bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-200 transition cursor-pointer text-xs font-bold" title="Pause Game [P]">
+          ⏸
+        </button>
+
+        <button id="btnSoundToggle" class="p-2 rounded-xl bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-200 transition cursor-pointer text-xs" title="Toggle Audio">
+          🔊
+        </button>
+      </div>
+    </div>
+
+    <!-- 6-Slot Color-Tiered Weapon Armory Strip & Stat Summary -->
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div id="hudWeapons" class="flex items-center gap-1.5 bg-[#0a1814]/88 backdrop-blur-md border border-emerald-500/25 rounded-xl px-2.5 py-1.5 pointer-events-auto"></div>
+      <div id="hudStatChips" class="hidden lg:flex items-center gap-2 bg-[#0a1814]/88 backdrop-blur-md border border-emerald-500/25 rounded-xl px-3 py-1.5 text-[11px] font-mono-code text-emerald-200"></div>
+    </div>
+
+    <!-- Wave 10 Dual Mega-Alien Bosses ("TOKAR" & "BAKER") Health Bars -->
+    <div id="hudBossContainer" class="hidden w-full max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-1">
+      <div class="bg-[#1f0710]/94 border-2 border-rose-500/75 rounded-xl p-2.5 shadow-2xl">
+        <div class="flex justify-between text-xs font-display font-extrabold text-rose-300 mb-1">
+          <span>👑 TOKAR — MEGA APEX TITAN</span>
+          <span id="bossTokarHpText" class="font-mono-code">100%</span>
+        </div>
+        <div class="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-rose-500/50">
+          <div id="bossTokarHpBar" class="h-full bg-gradient-to-r from-rose-600 via-red-500 to-amber-400 transition-all duration-150" style="width: 100%"></div>
+        </div>
+      </div>
+      <div class="bg-[#061f16]/94 border-2 border-amber-400/75 rounded-xl p-2.5 shadow-2xl">
+        <div class="flex justify-between text-xs font-display font-extrabold text-amber-300 mb-1">
+          <span>👑 BAKER — MEGA SOVEREIGN TITAN</span>
+          <span id="bossBakerHpText" class="font-mono-code">100%</span>
+        </div>
+        <div class="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-amber-400/50">
+          <div id="bossBakerHpBar" class="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-300 transition-all duration-150" style="width: 100%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM-RIGHT DASH & ULTIMATE BUTTONS -->
+  <div id="hudBottomControls" class="hidden fixed bottom-4 right-4 z-20 flex items-end gap-3 pointer-events-auto">
+    <button id="btnDashAction" class="w-16 h-16 rounded-2xl bg-cyan-950/90 hover:bg-cyan-900 active:scale-95 border-2 border-cyan-400/75 shadow-lg shadow-cyan-500/20 flex flex-col items-center justify-center text-cyan-200 transition cursor-pointer">
+      <span class="text-lg font-extrabold">⚡</span>
+      <span class="text-[10px] font-display font-bold tracking-wider">DASH</span>
+      <span class="text-[9px] font-mono-code text-cyan-300/80">[SPACE]</span>
+    </button>
+    <button id="btnUltAction" class="w-20 h-20 rounded-2xl bg-amber-950/90 hover:bg-amber-900 active:scale-95 border-2 border-amber-400/85 shadow-lg shadow-amber-500/25 flex flex-col items-center justify-center text-amber-200 transition cursor-pointer relative overflow-hidden">
+      <div id="ultCooldownOverlay" class="absolute inset-x-0 bottom-0 bg-amber-400/25 transition-all duration-100" style="height: 100%"></div>
+      <span class="text-xl font-extrabold relative z-10">💥</span>
+      <span class="text-[11px] font-display font-bold tracking-wider relative z-10">ULTIMATE</span>
+      <span id="ultStatusText" class="text-[9px] font-mono-code text-amber-300 relative z-10">READY [E]</span>
+    </button>
+  </div>
+
+  <!-- MOBILE VIRTUAL THUMBSTICK -->
+  <div id="mobileJoystickZone" class="hidden fixed bottom-4 left-4 z-20 w-32 h-32 rounded-full bg-emerald-950/45 border-2 border-emerald-400/35 backdrop-blur-sm touch-none flex items-center justify-center">
+    <div id="mobileJoystickKnob" class="w-12 h-12 rounded-full bg-emerald-400/75 border-2 border-white/85 shadow-lg pointer-events-none"></div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- TITLE & 16-OPERATIVE SELECTION SCREEN                     -->
+  <!-- ========================================================= -->
+  <div id="titleScreen" class="fixed inset-0 z-30 bg-[#06100d]/96 backdrop-blur-md overflow-y-auto flex flex-col">
+    <div class="max-w-7xl w-full mx-auto px-4 py-4 sm:px-6 sm:py-5 flex-1 flex flex-col gap-4">
+      
+      <!-- Header & Quadratic Complexity + Wave Intensity Selectors -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-[#0a1814] border border-emerald-500/35 rounded-3xl p-4 sm:p-5 shadow-2xl">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-xs font-mono-code font-bold mb-1.5">
+            <span>✕ ALGEBRA 1 X-METHOD ROGUELITE</span>
+            <span>•</span>
+            <span class="text-amber-300">10-WAVE ALIEN EVOLUTION</span>
+          </div>
+          <h1 class="font-display font-extrabold text-3xl sm:text-5xl tracking-tight text-white">
+            BAKER'S <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-300">BATTLEGROUND</span>
+          </h1>
+          <p class="text-emerald-200/80 text-xs sm:text-sm mt-1 max-w-2xl">
+            Survive 10 escalating waves of <span class="text-emerald-300 font-semibold">Level 1–10 Alien Species</span>, forge <span class="text-amber-300 font-semibold">Tier 4 Sovereign Gold</span> weapons, solve quadratics via the <span class="text-cyan-300 font-semibold">X-Method</span>, and defeat Mega-Aliens <span class="text-rose-300 font-bold">TOKAR</span> &amp; <span class="text-amber-300 font-bold">BAKER</span>!
+          </p>
+        </div>
+
+        <!-- Quadratic Complexity Mode + Wave Alien Intensity Stack -->
+        <div class="flex flex-col gap-2.5 min-w-[295px] sm:min-w-[390px]">
+          <!-- 4 Quadratic Complexity Modes (Untouched) -->
+          <div class="bg-[#06100d] border border-emerald-500/30 rounded-2xl p-3">
+            <div class="text-xs font-display font-bold uppercase tracking-wider text-amber-300 mb-1.5 flex items-center justify-between">
+              <span>Quadratic Complexity Mode</span>
+              <span id="modeBadge" class="text-[10px] font-mono-code px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">INTENSE</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5" id="difficultyButtons">
+              <button data-diff="easy" class="diff-btn px-2.5 py-1.5 rounded-xl border text-left transition cursor-pointer bg-[#0a1814] border-emerald-500/25 hover:border-emerald-400">
+                <div class="font-display font-bold text-xs text-emerald-300">EASY</div>
+                <div class="text-[10px] text-emerald-100/70 font-mono-code">A=1, |AC|&lt;70</div>
+              </button>
+              <button data-diff="medium" class="diff-btn px-2.5 py-1.5 rounded-xl border text-left transition cursor-pointer bg-[#0a1814] border-emerald-500/25 hover:border-emerald-400">
+                <div class="font-display font-bold text-xs text-cyan-300">MEDIUM</div>
+                <div class="text-[10px] text-emerald-100/70 font-mono-code">A≥1, |AC|&lt;100</div>
+              </button>
+              <button data-diff="hard" class="diff-btn px-2.5 py-1.5 rounded-xl border text-left transition cursor-pointer bg-[#0a1814] border-emerald-500/25 hover:border-emerald-400">
+                <div class="font-display font-bold text-xs text-rose-300">HARD</div>
+                <div class="text-[10px] text-emerald-100/70 font-mono-code">A&gt;1, |AC|&lt;200</div>
+              </button>
+              <button data-diff="intense" class="diff-btn px-2.5 py-1.5 rounded-xl border text-left transition cursor-pointer bg-emerald-500/20 border-amber-400 shadow-md">
+                <div class="font-display font-bold text-xs text-amber-300">INTENSE</div>
+                <div class="text-[10px] text-emerald-100/80 font-mono-code">W1→W10 Scale</div>
+              </button>
+            </div>
+            <div id="difficultyDesc" class="text-[11px] text-emerald-200/75 mt-1.5 font-mono-code">
+              Intense: Waves 1–3 Easy, Waves 4–7 Medium, Waves 8–10 Hard.
+            </div>
+          </div>
+
+          <!-- 4 Wave Alien Intensity Modes (Separate from Problem Difficulty) -->
+          <div class="bg-[#06100d] border border-cyan-500/30 rounded-2xl p-3">
+            <div class="text-xs font-display font-bold uppercase tracking-wider text-cyan-300 mb-1.5 flex items-center justify-between">
+              <span>Wave Alien Intensity</span>
+              <span id="intensityBadge" class="text-[10px] font-mono-code px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300">MEDIUM</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5" id="intensityButtons">
+              <button data-intensity="easy" class="intensity-btn px-2.5 py-1.5 rounded-xl border text-left transition cursor-pointer bg-[#0a1814] border-emerald-500/25 hover:border-cyan-400">
+                <div class="font-display font-bold text-xs text-emerald-300">EASY</div>
+                <div class="text-[10px] text-emerald-100/70 font-mono-code">0.75x Swarm</div>
+              </button>
+              <button data-intensity="medium" class="intensity-btn px-2.5 py-1.5 rounded-xl border text-left transition cursor-pointer bg-cyan-500/20 border-cyan-400 shadow-md">
+                <div class="font-display font-bold text-xs text-cyan-300">MEDIUM</div>
+                <div class="text-[10px] text-emerald-100/80 font-mono-code">1.0x Default</div>
+              </button>
+              <button data-intensity="hard" class="intensity-btn px-2.5 py-1.5 rounded-xl border text-left transition cursor-pointer bg-[#0a1814] border-emerald-500/25 hover:border-cyan-400">
+                <div class="font-display font-bold text-xs text-amber-300">HARD</div>
+                <div class="text-[10px] text-emerald-100/70 font-mono-code">1.45x Swarm</div>
+              </button>
+              <button data-intensity="extreme" class="intensity-btn px-2.5 py-1.5 rounded-xl border text-left transition cursor-pointer bg-[#0a1814] border-emerald-500/25 hover:border-cyan-400">
+                <div class="font-display font-bold text-xs text-rose-300">EXTREME</div>
+                <div class="text-[10px] text-emerald-100/70 font-mono-code">2.0x Horde</div>
+              </button>
+            </div>
+            <div id="intensityDesc" class="text-[11px] text-cyan-200/75 mt-1.5 font-mono-code">
+              Medium: Standard 1.0x alien spawn rate, swarm cap, HP &amp; speed.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Body: Selected Operative Spotlight + All 16 Operatives Roster -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 pb-6">
+        
+        <!-- Left 4 Cols: Selected Operative Spotlight -->
+        <div class="lg:col-span-4 bg-[#0a1814] border border-emerald-500/35 rounded-3xl p-5 flex flex-col justify-between shadow-xl">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono-code uppercase tracking-wider text-emerald-400 font-bold">Selected Operative</span>
+              <span id="selHeroRole" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40">Tactical Marksman</span>
+            </div>
+
+            <div class="flex items-center gap-4 bg-[#06100d] border border-emerald-500/25 rounded-2xl p-3.5 mb-3.5">
+              <div id="selHeroPortrait" class="w-24 h-28 rounded-2xl bg-gradient-to-b from-emerald-950/70 to-slate-950 border-2 border-emerald-400/50 flex items-center justify-center shrink-0 shadow-lg overflow-hidden"></div>
+              <div class="min-w-0">
+                <h2 id="selHeroName" class="font-display font-extrabold text-2xl text-white">Ranger Nova</h2>
+                <div id="selHeroGear" class="text-[11px] font-mono-code text-cyan-300 mt-0.5">Gear: Recon Jetpack &amp; Holo-Visor</div>
+                <div id="selHeroWeapon" class="text-xs font-mono-code text-amber-300 mt-1">Weapon: Twin Pulse Carbines</div>
+                <p id="selHeroPassive" class="text-xs text-emerald-100/80 mt-1 leading-relaxed">Passive: +18% Fire Rate &amp; +14% Crit Precision.</p>
+              </div>
+            </div>
+
+            <!-- 4-Tier Color Rarity Legend -->
+            <div class="bg-[#06100d] border border-emerald-500/25 rounded-2xl p-3 mb-3">
+              <div class="text-[10px] font-display font-bold uppercase tracking-wider text-emerald-300 mb-1.5">4-Tier Weapon Evolution Colors</div>
+              <div class="grid grid-cols-4 gap-1.5 text-[10px] font-mono-code font-bold text-center">
+                <div class="py-1 px-1 rounded-lg bg-emerald-500/15 border border-emerald-400/50 text-emerald-300">T1 EMERALD</div>
+                <div class="py-1 px-1 rounded-lg bg-sky-500/15 border border-sky-400/60 text-sky-300">T2 COBALT</div>
+                <div class="py-1 px-1 rounded-lg bg-purple-500/15 border border-purple-400/60 text-purple-300">T3 AMETHYST</div>
+                <div class="py-1 px-1 rounded-lg bg-amber-500/20 border border-amber-400 text-amber-300 shadow-sm shadow-amber-400/20">T4 GOLD ★</div>
+              </div>
+            </div>
+
+            <div class="bg-amber-500/10 border border-amber-400/30 rounded-2xl p-3 mb-3.5">
+              <div class="text-xs font-display font-bold text-amber-300 uppercase tracking-wider">⚡ Ultimate Ability [E]</div>
+              <div id="selHeroUlt" class="text-xs text-emerald-50 mt-1">Orbital Barrage: Calls down 22 plasma strikes across the arena.</div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-xs font-mono-code">
+              <div class="bg-[#06100d] border border-emerald-500/20 rounded-xl p-2 flex justify-between">
+                <span class="text-emerald-300/70">MAX HP</span>
+                <span id="statHp" class="font-bold text-white">115</span>
+              </div>
+              <div class="bg-[#06100d] border border-emerald-500/20 rounded-xl p-2 flex justify-between">
+                <span class="text-emerald-300/70">SPEED</span>
+                <span id="statSpd" class="font-bold text-cyan-300">275</span>
+              </div>
+              <div class="bg-[#06100d] border border-emerald-500/20 rounded-xl p-2 flex justify-between">
+                <span class="text-emerald-300/70">FIRE RATE</span>
+                <span id="statRate" class="font-bold text-amber-300">1.18x</span>
+              </div>
+              <div class="bg-[#06100d] border border-emerald-500/20 rounded-xl p-2 flex justify-between">
+                <span class="text-emerald-300/70">LIVES</span>
+                <span class="font-bold text-emerald-300">5 (-20% HP/Fail)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3.5 border-t border-emerald-500/20">
+            <button id="btnStartGame" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400 hover:brightness-110 active:scale-[0.99] text-slate-950 font-display font-extrabold text-lg sm:text-xl tracking-wide shadow-xl glow-emerald transition cursor-pointer">
+              DEPLOY TO ARENA ▶
+            </button>
+            <div class="text-center text-[11px] text-emerald-300/70 mt-1.5 font-mono-code">
+              WASD / Arrows: Move • Space/Shift/Right-Click: Dash • E: Ultimate
+            </div>
+          </div>
+        </div>
+
+        <!-- Right 8 Cols: All 16 Full-Body Operatives Grid -->
+        <div class="lg:col-span-8 bg-[#0a1814] border border-emerald-500/35 rounded-3xl p-4 sm:p-5 shadow-xl flex flex-col">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-display font-bold text-lg text-white">SELECT FULL-BODY OPERATIVE <span class="text-xs font-mono-code text-emerald-400 ml-2">(ALL 16 UNLOCKED)</span></h3>
+            <span class="text-xs text-amber-300 font-mono-code">Unique Gear &amp; Signature Weapon</span>
+          </div>
+          <div id="heroGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pr-1"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PAUSE OVERLAY (INCLUDES LIVE WAVE INTENSITY ADJUSTER)     -->
+  <!-- ========================================================= -->
+  <div id="pauseModal" class="hidden fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-[#0a1814] border-2 border-emerald-400/60 rounded-3xl max-w-md w-full p-6 text-center shadow-2xl my-auto">
+      <h2 class="font-display font-extrabold text-3xl text-white">SIMULATION PAUSED</h2>
+      <p class="text-xs text-emerald-200/80 mt-2 font-mono-code">Press P or click Resume to continue combat.</p>
+
+      <!-- Live Wave Alien Intensity Switcher -->
+      <div class="mt-4 bg-[#06100d] border border-cyan-500/30 rounded-2xl p-3 text-left">
+        <div class="text-xs font-display font-bold uppercase tracking-wider text-cyan-300 mb-2 flex items-center justify-between">
+          <span>Wave Alien Intensity</span>
+          <span id="pauseIntensityBadge" class="text-[10px] font-mono-code px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300">MEDIUM</span>
+        </div>
+        <div class="grid grid-cols-4 gap-1.5">
+          <button data-intensity="easy" class="pause-intensity-btn px-2 py-1.5 rounded-xl border text-center transition cursor-pointer bg-[#0a1814] border-emerald-500/25 hover:border-cyan-400">
+            <div class="font-display font-bold text-xs text-emerald-300">EASY</div>
+            <div class="text-[9px] text-emerald-100/70 font-mono-code">0.75x</div>
+          </button>
+          <button data-intensity="medium" class="pause-intensity-btn px-2 py-1.5 rounded-xl border text-center transition cursor-pointer bg-cyan-500/20 border-cyan-400">
+            <div class="font-display font-bold text-xs text-cyan-300">MEDIUM</div>
+            <div class="text-[9px] text-emerald-100/80 font-mono-code">1.0x</div>
+          </button>
+          <button data-intensity="hard" class="pause-intensity-btn px-2 py-1.5 rounded-xl border text-center transition cursor-pointer bg-[#0a1814] border-emerald-500/25 hover:border-cyan-400">
+            <div class="font-display font-bold text-xs text-amber-300">HARD</div>
+            <div class="text-[9px] text-emerald-100/70 font-mono-code">1.45x</div>
+          </button>
+          <button data-intensity="extreme" class="pause-intensity-btn px-2 py-1.5 rounded-xl border text-center transition cursor-pointer bg-[#0a1814] border-emerald-500/25 hover:border-cyan-400">
+            <div class="font-display font-bold text-xs text-rose-300">EXTREME</div>
+            <div class="text-[9px] text-emerald-100/70 font-mono-code">2.0x</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-5 flex flex-col gap-3">
+        <button id="btnResumeGame" class="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-display font-extrabold text-base cursor-pointer">
+          RESUME BATTLE ▶
+        </button>
+        <button id="btnQuitToMenu" class="w-full py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-emerald-500/30 text-emerald-200 font-display font-bold text-sm cursor-pointer">
+          RETURN TO OPERATIVE SELECT
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- ALGEBRA 1 X-METHOD QUADRATIC BREACH MODAL                 -->
+  <!-- ========================================================= -->
+  <div id="mathModal" class="hidden fixed inset-0 z-40 bg-slate-950/88 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+    <div class="bg-[#0a1814] border-2 border-amber-400/85 rounded-3xl max-w-3xl w-full p-5 sm:p-7 shadow-2xl my-auto">
+      
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-500/25 pb-3 mb-4">
+        <div class="flex items-center gap-2.5">
+          <span class="px-3 py-1 rounded-xl bg-amber-500/20 border border-amber-400/50 text-amber-300 font-display font-extrabold text-xs sm:text-sm tracking-wider">
+            ⚡ X-METHOD QUADRATIC BREACH
+          </span>
+          <span id="mathBreachTag" class="text-xs font-mono-code text-cyan-300 bg-cyan-950/80 border border-cyan-500/30 px-2.5 py-1 rounded-lg">
+            TACTICAL OVERRIDE
+          </span>
+        </div>
+        <span id="mathModeLabel" class="text-xs font-mono-code font-bold text-emerald-300">DIFFICULTY: INTENSE</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+        <!-- Left 7 Cols: Problem & Choices -->
+        <div class="md:col-span-7 flex flex-col gap-3 min-w-0">
+          <div class="bg-[#06100d] border border-emerald-500/30 rounded-2xl p-4">
+            <div id="mathTaskType" class="text-xs font-display font-bold uppercase tracking-wider text-amber-300 mb-1">
+              FACTOR COMPLETELY:
+            </div>
+            <div id="mathEquation" class="font-mono-code font-extrabold text-2xl sm:text-3xl text-white tracking-tight">
+              x² + 7x + 12
+            </div>
+            <div id="mathHintSub" class="text-xs text-emerald-300/75 mt-1.5 font-mono-code">
+              Find m₁ and m₂ that multiply to A·C and add to B, then divide by a.
+            </div>
+          </div>
+
+          <div id="mathChoices" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+        </div>
+
+        <!-- Right 5 Cols: Interactive X-Method Diamond -->
+        <div class="md:col-span-5 bg-[#06100d] border border-emerald-500/30 rounded-2xl p-4 flex flex-col items-center justify-center">
+          <div class="text-[11px] font-display font-bold uppercase tracking-widest text-emerald-400 mb-2">
+            X-METHOD DIAMOND
+          </div>
+          <svg id="xMethodSvg" viewBox="0 0 240 210" class="w-full max-w-[230px] h-auto">
+            <polygon id="xQuadTop" points="120,105 40,25 200,25" fill="#fbbf24" opacity="0.05" />
+            <polygon id="xQuadBot" points="120,105 40,185 200,185" fill="#10b981" opacity="0.05" />
+            <polygon id="xQuadLeft" points="120,105 35,30 35,180" fill="#38bdf8" opacity="0.05" />
+            <polygon id="xQuadRight" points="120,105 205,30 205,180" fill="#38bdf8" opacity="0.05" />
+
+            <line x1="35" y1="25" x2="205" y2="185" stroke="#10b981" stroke-width="4" stroke-linecap="round" opacity="0.9" />
+            <line x1="205" y1="25" x2="35" y2="185" stroke="#10b981" stroke-width="4" stroke-linecap="round" opacity="0.9" />
+            
+            <text x="120" y="22" text-anchor="middle" fill="#fbbf24" font-size="11" font-family="JetBrains Mono" font-weight="700">A · C</text>
+            <text id="xTopVal" x="120" y="48" text-anchor="middle" fill="#ffffff" font-size="20" font-family="JetBrains Mono" font-weight="800">12</text>
+
+            <text id="xBotVal" x="120" y="168" text-anchor="middle" fill="#ffffff" font-size="20" font-family="JetBrains Mono" font-weight="800">7</text>
+            <text x="120" y="192" text-anchor="middle" fill="#34d399" font-size="11" font-family="JetBrains Mono" font-weight="700">B</text>
+
+            <text id="xLeftTop" x="48" y="96" text-anchor="middle" fill="#38bdf8" font-size="17" font-family="JetBrains Mono" font-weight="800">?</text>
+            <line x1="24" y1="104" x2="72" y2="104" stroke="#94a3b8" stroke-width="2" />
+            <text id="xLeftBot" x="48" y="124" text-anchor="middle" fill="#fbbf24" font-size="15" font-family="JetBrains Mono" font-weight="700">1</text>
+
+            <text id="xRightTop" x="192" y="96" text-anchor="middle" fill="#38bdf8" font-size="17" font-family="JetBrains Mono" font-weight="800">?</text>
+            <line x1="168" y1="104" x2="216" y2="104" stroke="#94a3b8" stroke-width="2" />
+            <text id="xRightBot" x="192" y="124" text-anchor="middle" fill="#fbbf24" font-size="15" font-family="JetBrains Mono" font-weight="700">1</text>
+          </svg>
+          <div id="xSimplifiedNote" class="text-[11px] font-mono-code text-cyan-300 text-center mt-1 min-h-[28px] flex flex-wrap items-center justify-center gap-1"></div>
+        </div>
+      </div>
+
+      <!-- Result Feedback & Mandatory Continue Panel (Shown for BOTH Correct & Wrong Answers) -->
+      <div id="mathFeedbackBox" class="hidden mt-4 bg-rose-950/65 border-2 border-rose-400/65 rounded-2xl p-4">
+        <div class="flex items-start gap-3">
+          <div id="mathFeedbackIcon" class="text-2xl">⚠️</div>
+          <div class="flex-1">
+            <div id="mathFeedbackTitle" class="font-display font-bold text-rose-300 text-sm sm:text-base">
+              MISTAKE DIAGNOSIS — HOW TO FIX IT WITH THE X-METHOD
+            </div>
+            <p id="mathDiagnosisText" class="text-xs sm:text-sm text-rose-100 mt-1"></p>
+            <div id="mathStepsText" class="mt-2.5 bg-[#06100d]/90 border border-emerald-500/30 rounded-xl p-3 font-mono-code text-xs text-emerald-200 space-y-2"></div>
+            <div class="mt-3 flex justify-end">
+              <button id="btnContinueBreach" class="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-display font-extrabold text-sm shadow-lg transition cursor-pointer">
+                Continue Battle (Enter) ▶
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- LEVEL-UP DRAFT & BETWEEN-WAVE ARMORY SHOP MODAL           -->
+  <!-- ========================================================= -->
+  <div id="upgradeModal" class="hidden fixed inset-0 z-40 bg-slate-950/88 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+    <div class="bg-[#0a1814] border-2 border-emerald-400/75 rounded-3xl max-w-4xl w-full p-5 sm:p-7 shadow-2xl my-auto">
+      
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-500/25 pb-3.5 mb-5">
+        <div>
+          <span id="upgradeTag" class="px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-mono-code text-xs font-bold">LEVEL UP!</span>
+          <h2 id="upgradeTitle" class="font-display font-extrabold text-2xl sm:text-3xl text-white mt-1">CHOOSE TACTICAL UPGRADE</h2>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="bg-amber-500/15 border border-amber-400/40 rounded-xl px-3.5 py-2 flex items-center gap-2">
+            <span class="text-amber-400">⬡</span>
+            <span id="shopGoldDisplay" class="font-mono-code font-extrabold text-amber-300 text-base">0</span>
+          </div>
+          <button id="btnRerollShop" class="px-3.5 py-2 rounded-xl bg-emerald-950 hover:bg-emerald-900 border border-emerald-400/40 text-xs font-display font-bold text-emerald-200 transition cursor-pointer">
+            🎲 Reroll (<span id="rerollCostText" class="text-amber-300">15</span>)
+          </button>
+        </div>
+      </div>
+
+      <div id="upgradeCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5"></div>
+
+      <div id="shopFooter" class="hidden mt-5 pt-4 border-t border-emerald-500/20 flex flex-wrap items-center justify-between gap-3">
+        <div class="text-xs text-emerald-200/75 font-mono-code">
+          Evolution: <span class="text-emerald-300">T1 Emerald</span> → <span class="text-sky-300">T2 Cobalt</span> → <span class="text-purple-300">T3 Amethyst</span> → <span class="text-amber-300 font-bold">T4 GOLD</span>
+        </div>
+        <button id="btnNextWave" class="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-amber-400 hover:brightness-110 text-slate-950 font-display font-extrabold text-base shadow-lg transition cursor-pointer">
+          DEPLOY NEXT WAVE ▶
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- GAME OVER / VICTORY MODAL                                 -->
+  <!-- ========================================================= -->
+  <div id="endModal" class="hidden fixed inset-0 z-50 bg-slate-950/92 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-[#0a1814] border-2 border-emerald-400/75 rounded-3xl max-w-lg w-full p-6 sm:p-8 text-center shadow-2xl">
+      <div id="endIcon" class="text-5xl mb-3">🏆</div>
+      <h2 id="endTitle" class="font-display font-extrabold text-3xl sm:text-4xl text-white">VICTORY!</h2>
+      <p id="endSubtitle" class="text-sm text-emerald-200/80 mt-2">You conquered all 10 waves and defeated Mega-Aliens TOKAR &amp; BAKER!</p>
+      
+      <div class="grid grid-cols-2 gap-3 my-5 text-left font-mono-code text-xs">
+        <div class="bg-[#06100d] border border-emerald-500/25 rounded-xl p-3">
+          <div class="text-emerald-400/70">WAVE REACHED</div>
+          <div id="endWave" class="text-lg font-bold text-white mt-0.5">10 / 10</div>
+        </div>
+        <div class="bg-[#06100d] border border-emerald-500/25 rounded-xl p-3">
+          <div class="text-emerald-400/70">ALIENS ELIMINATED</div>
+          <div id="endKills" class="text-lg font-bold text-amber-300 mt-0.5">0</div>
+        </div>
+        <div class="bg-[#06100d] border border-emerald-500/25 rounded-xl p-3">
+          <div class="text-emerald-400/70">QUADRATICS SOLVED</div>
+          <div id="endMathScore" class="text-lg font-bold text-cyan-300 mt-0.5">0 / 0</div>
+        </div>
+        <div class="bg-[#06100d] border border-emerald-500/25 rounded-xl p-3">
+          <div class="text-emerald-400/70">OPERATIVE</div>
+          <div id="endHero" class="text-sm font-bold text-emerald-300 mt-1 truncate">Ranger Nova</div>
+        </div>
+      </div>
+
+      <button id="btnRestartGame" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-amber-400 hover:brightness-110 text-slate-950 font-display font-extrabold text-lg shadow-lg transition cursor-pointer">
+        PLAY AGAIN ↻
+      </button>
+    </div>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  // =========================================================================
+  // 1. WEB AUDIO SYNTHESIZER
+  // =========================================================================
+  class SoundFX {
+    constructor() {
+      this.ctx = null;
+      this.enabled = true;
+    }
+    init() {
+      if (!this.ctx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) this.ctx = new AudioCtx();
+      }
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+    }
+    play(type) {
+      if (!this.enabled) return;
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      if (type === 'shoot') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(540 + Math.random() * 140, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.06);
+        gain.gain.setValueAtTime(0.045, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+        osc.start(now);
+        osc.stop(now + 0.06);
+      } else if (type === 'hit') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.exponentialRampToValueAtTime(75, now + 0.055);
+        gain.gain.setValueAtTime(0.055, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
+        osc.start(now);
+        osc.stop(now + 0.055);
+      } else if (type === 'kill') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(310, now);
+        osc.frequency.exponentialRampToValueAtTime(85, now + 0.11);
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+        osc.start(now);
+        osc.stop(now + 0.11);
+      } else if (type === 'dash') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(290, now);
+        osc.frequency.exponentialRampToValueAtTime(920, now + 0.14);
+        gain.gain.setValueAtTime(0.11, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+        osc.start(now);
+        osc.stop(now + 0.14);
+      } else if (type === 'xp') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(680 + Math.random() * 180, now);
+        osc.frequency.exponentialRampToValueAtTime(1220, now + 0.075);
+        gain.gain.setValueAtTime(0.045, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+        osc.start(now);
+        osc.stop(now + 0.075);
+      } else if (type === 'levelup') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(554, now + 0.08);
+        osc.frequency.setValueAtTime(659, now + 0.16);
+        osc.frequency.setValueAtTime(880, now + 0.24);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+        osc.start(now);
+        osc.stop(now + 0.42);
+      } else if (type === 'revive') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.exponentialRampToValueAtTime(640, now + 0.35);
+        gain.gain.setValueAtTime(0.16, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+        osc.start(now);
+        osc.stop(now + 0.38);
+      } else if (type === 'correct') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.setValueAtTime(783.99, now + 0.1);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+        osc.start(now);
+        osc.stop(now + 0.28);
+      } else if (type === 'wrong') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(190, now);
+        osc.frequency.linearRampToValueAtTime(125, now + 0.25);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+        osc.start(now);
+        osc.stop(now + 0.26);
+      } else if (type === 'ult') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(780, now + 0.35);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
+      }
+    }
+  }
+  const sfx = new SoundFX();
+
+  // =========================================================================
+  // 2. 4-TIER WEAPON RARITY PALETTE (T1 EMERALD -> T2 COBALT -> T3 AMETHYST -> T4 GOLD)
+  // =========================================================================
+  const TIER_STYLES = {
+    1: {
+      label: 'T1 EMERALD',
+      color: '#34d399',
+      borderClass: 'border-emerald-400/60 bg-emerald-950/90 text-emerald-200',
+      dmgMult: 1.0,
+      rateMult: 1.0,
+      extraCount: 0,
+      extraPierce: 0,
+      goldExplode: 0
+    },
+    2: {
+      label: 'T2 COBALT',
+      color: '#38bdf8',
+      borderClass: 'border-sky-400 bg-sky-950/85 text-sky-200 shadow-sm shadow-sky-400/30',
+      dmgMult: 1.65,
+      rateMult: 0.88,
+      extraCount: 1,
+      extraPierce: 1,
+      goldExplode: 0
+    },
+    3: {
+      label: 'T3 AMETHYST',
+      color: '#c084fc',
+      borderClass: 'border-purple-400 bg-purple-950/85 text-purple-200 shadow-md shadow-purple-400/35',
+      dmgMult: 2.55,
+      rateMult: 0.78,
+      extraCount: 1,
+      extraPierce: 2,
+      goldExplode: 45
+    },
+    4: {
+      label: 'T4 SOVEREIGN GOLD',
+      color: '#fbbf24',
+      borderClass: 'border-amber-300 bg-gradient-to-br from-amber-500/35 to-yellow-700/40 text-amber-200 shadow-lg shadow-amber-400/45',
+      dmgMult: 4.10,
+      rateMult: 0.66,
+      extraCount: 2,
+      extraPierce: 4,
+      goldExplode: 95
+    }
+  };
+
+  // =========================================================================
+  // 3. 16 SIGNATURE WEAPON CATALOG (UNIQUE TO EACH OPERATIVE)
+  // =========================================================================
+  const WEAPON_CATALOG = {
+    pulse:      { id: 'pulse',      name: 'Twin Pulse Carbines',   icon: '🔫', shape: 'twin',    dmg: 24, rate: 0.24, speed: 840, count: 2, spread: 0.08, pierce: 1, desc: 'Rapid-fire twin carbines with high velocity.' },
+    graviton:   { id: 'graviton',   name: 'Graviton Magnet Lance', icon: '🧲', shape: 'lance',   dmg: 34, rate: 0.38, speed: 780, count: 1, spread: 0.04, pierce: 4, bounce: true, desc: 'Rebounding golden-ratio energy lance.' },
+    seismic:    { id: 'seismic',    name: 'Seismic Gauntlets',     icon: '🥊', shape: 'gauntlet',dmg: 20, rate: 0.50, speed: 680, count: 5, spread: 0.42, pierce: 1, desc: 'Close-quarters heavy shockwave fan.' },
+    inferno:    { id: 'inferno',    name: 'Inferno Plasma Flamer', icon: '🔥', shape: 'flamer',  dmg: 46, rate: 0.68, speed: 560, count: 1, spread: 0.08, pierce: 1, explode: 90, desc: 'Launches wide-radius incendiary plasma shells.' },
+    rail:       { id: 'rail',       name: 'Hyper-Coil Railgun',    icon: '⚡', shape: 'rail',    dmg: 58, rate: 0.62, speed: 1180,count: 1, spread: 0.0,  pierce: 6, desc: 'Hyper-velocity rail beam piercing 6 hostiles.' },
+    katana:     { id: 'katana',     name: 'Phase Void Katana',     icon: '🗡️', shape: 'katana',  dmg: 28, rate: 0.32, speed: 800, count: 3, spread: 0.18, pierce: 3, spin: true, desc: 'Fires spinning crescent energy blades.' },
+    tachyon:    { id: 'tachyon',    name: 'Tachyon Chrono-Rifle',  icon: '⏱️', shape: 'rifle',   dmg: 30, rate: 0.28, speed: 960, count: 2, spread: 0.06, pierce: 2, chill: true, desc: 'Temporal bolts that slow alien movement.' },
+    flak:       { id: 'flak',       name: 'Aegis Bastion Flak',    icon: '🛡️', shape: 'flak',    dmg: 22, rate: 0.48, speed: 700, count: 4, spread: 0.30, pierce: 2, desc: 'Armor-shredding tungsten shrapnel burst.' },
+    alch:       { id: 'alch',       name: 'Corrosive Nova Vial',   icon: '🧪', shape: 'staff',   dmg: 40, rate: 0.64, speed: 490, count: 1, spread: 0.05, pierce: 4, explode: 82, desc: 'Detonates volatile acid spheres on impact.' },
+    starlight:  { id: 'starlight',  name: 'Starlight Wing-Bow',    icon: '🏹', shape: 'bow',     dmg: 38, rate: 0.40, speed: 1020,count: 2, spread: 0.11, pierce: 4, desc: 'Radiant celestial arrows with deep penetration.' },
+    arc:        { id: 'arc',        name: 'Tesla Arc Projector',   icon: '🌩️', shape: 'coil',    dmg: 25, rate: 0.30, speed: 860, count: 3, spread: 0.24, pierce: 3, homing: true, desc: 'Tracking lightning bolts that seek targets.' },
+    cryo:       { id: 'cryo',       name: 'Glacial Shard Cannon',  icon: '❄️', shape: 'flamer',  dmg: 27, rate: 0.44, speed: 650, count: 3, spread: 0.22, pierce: 2, chill: true, desc: 'Freezing ice shards that chill swarms.' },
+    nanite:     { id: 'nanite',     name: 'Nanite Bio-Repeater',   icon: '🧬', shape: 'rifle',   dmg: 25, rate: 0.27, speed: 800, count: 2, spread: 0.08, pierce: 2, homing: true, desc: 'Bio-engineered darts that home onto xenos.' },
+    missile:    { id: 'missile',    name: 'Quad Micro-Launcher',   icon: '🚀', shape: 'launcher',dmg: 36, rate: 0.62, speed: 600, count: 3, spread: 0.28, pierce: 1, homing: true, explode: 75, desc: 'Salvo of homing explosive micro-rockets.' },
+    chi:        { id: 'chi',        name: 'Dragon Spirit Glaive',  icon: '🐉', shape: 'glaive',  dmg: 31, rate: 0.34, speed: 760, count: 2, spread: 0.14, pierce: 3, spin: true, desc: 'Spinning dragon-chi crescents.' },
+    singularity:{ id: 'singularity',name: 'Void Singularity Orb',  icon: '🔮', shape: 'orb',     dmg: 52, rate: 0.74, speed: 450, count: 1, spread: 0.0,  pierce: 6, homing: true, explode: 98, desc: 'Dark-matter singularity that implodes packs.' }
+  };
+  const WEAPON_KEYS = Object.keys(WEAPON_CATALOG);
+
+  // =========================================================================
+  // 4. ALL 16 FULL-BODY 2.5D ILLUSTRATED OPERATIVES (UNIQUE GEAR & WEAPONS)
+  // =========================================================================
+  const OPERATIVES = [
+    {
+      id: 'nova', name: 'Ranger Nova', role: 'Tactical Marksman', weapon: 'pulse',
+      gearSummary: 'Recon Jetpack & Holo-Visor',
+      primary: '#10b981', secondary: '#064e3b', accent: '#fbbf24', visor: '#38bdf8', skin: '#f1c27d',
+      headgear: 'techVisor', backGear: 'jetpack',
+      hp: 115, speed: 280, fireRate: 1.18, dashes: 2,
+      passive: '+18% Fire Rate & +14% Crit Precision.',
+      ultDesc: 'Orbital Barrage: Calls down 22 plasma strikes across the arena.',
+      stats: { fireRate: 0.18, critChance: 0.14 }
+    },
+    {
+      id: 'euclid', name: 'Harvester Euclid', role: 'Geometric Scavenger', weapon: 'graviton',
+      gearSummary: 'Golden-Ratio Cloak & Cowl',
+      primary: '#fbbf24', secondary: '#78350f', accent: '#10b981', visor: '#fef08a', skin: '#e0ac69',
+      headgear: 'hood', backGear: 'cape',
+      hp: 120, speed: 285, fireRate: 1.10, dashes: 2,
+      passive: '+55% Magnet Radius & +30% Scrap/XP Gain.',
+      ultDesc: 'Golden Ratio Pulse: Pulls all gems & triggers 4s X-Stun.',
+      stats: { magnet: 0.55, greed: 0.30 }
+    },
+    {
+      id: 'titan', name: 'Brawler Titan', role: 'Juggernaut Vanguard', weapon: 'seismic',
+      gearSummary: 'Siege Exo-Armor & Thrusters',
+      primary: '#ef4444', secondary: '#7f1d1d', accent: '#fbbf24', visor: '#fca5a5', skin: '#c68642',
+      headgear: 'heavyHelm', backGear: 'thrusters',
+      hp: 175, speed: 255, fireRate: 1.10, dashes: 2,
+      passive: '+60 Max HP, +22% Armor & Dash Shockwaves.',
+      ultDesc: 'Seismic Slam: Obliterates close-range alien packs.',
+      stats: { armor: 0.22, dashNova: 1 }
+    },
+    {
+      id: 'vex', name: 'Pyro Vex', role: 'Thermal Striker', weapon: 'inferno',
+      gearSummary: 'Twin Napalm Tanks & Flame Crest',
+      primary: '#f97316', secondary: '#7c2d12', accent: '#fde047', visor: '#fed7aa', skin: '#f1c27d',
+      headgear: 'mohawk', backGear: 'fuelTanks',
+      hp: 125, speed: 276, fireRate: 1.14, dashes: 2,
+      passive: '+30% Splash Radius & +20% Damage.',
+      ultDesc: 'Supernova Ring: Unleashes 24 radial fireballs.',
+      stats: { damage: 0.20, area: 0.30 }
+    },
+    {
+      id: 'ada', name: 'Engineer Ada', role: 'Drone Architect', weapon: 'rail',
+      gearSummary: 'Tactical Goggles & Drone Rig',
+      primary: '#06b6d4', secondary: '#164e63', accent: '#fbbf24', visor: '#a5f3fc', skin: '#ffdbac',
+      headgear: 'goggles', backGear: 'dronePack',
+      hp: 120, speed: 275, fireRate: 1.22, dashes: 2,
+      passive: '+22% Attack Speed & +1 Orbiting Combat Drone.',
+      ultDesc: 'Overclock Turrets: 2.5x Fire Rate for 5 seconds!',
+      stats: { fireRate: 0.22, orbitShields: 1 }
+    },
+    {
+      id: 'zero', name: 'Phantom Zero', role: 'Shadow Assassin', weapon: 'katana',
+      gearSummary: 'Stealth Shroud & Void Scarf',
+      primary: '#a855f7', secondary: '#3b0764', accent: '#38bdf8', visor: '#e9d5ff', skin: '#d8b4fe',
+      headgear: 'hood', backGear: 'cape',
+      hp: 115, speed: 315, fireRate: 1.20, dashes: 3,
+      passive: 'Starts with 3 Dashes, Ultra Speed & +16% Crit.',
+      ultDesc: 'Shadow Blink: Fires 22 piercing void katana waves.',
+      stats: { critChance: 0.16, dashNova: 1 }
+    },
+    {
+      id: 'rook', name: 'Chrono Rook', role: 'Temporal Tactician', weapon: 'tachyon',
+      gearSummary: 'Chrono Crown & Rift Mantle',
+      primary: '#3b82f6', secondary: '#1e3a8a', accent: '#fde047', visor: '#93c5fd', skin: '#e0ac69',
+      headgear: 'crown', backGear: 'cape',
+      hp: 125, speed: 278, fireRate: 1.16, dashes: 2,
+      passive: '+25% Projectile Velocity & +1 Pierce.',
+      ultDesc: 'Time Dilation: Freezes all aliens in stasis for 4s.',
+      stats: { projSpeed: 0.25, pierce: 1 }
+    },
+    {
+      id: 'terra', name: 'Bulwark Terra', role: 'Obsidian Sentinel', weapon: 'flak',
+      gearSummary: 'Bastion Plate & Jump-Jets',
+      primary: '#84cc16', secondary: '#365314', accent: '#fbbf24', visor: '#d9f99d', skin: '#8d5524',
+      headgear: 'heavyHelm', backGear: 'thrusters',
+      hp: 165, speed: 260, fireRate: 1.10, dashes: 2,
+      passive: '+4 HP/sec Regen & +2 Orbiting Aegis X-Shields.',
+      ultDesc: 'Aegis Fortress: Restores 65 HP & blasts aliens back.',
+      stats: { regen: 4, orbitShields: 2 }
+    },
+    {
+      id: 'sol', name: 'Alchemist Sol', role: 'Solar Arcanist', weapon: 'alch',
+      gearSummary: 'Solar Diadem & Mutagen Tanks',
+      primary: '#eab308', secondary: '#713f12', accent: '#34d399', visor: '#fef08a', skin: '#f1c27d',
+      headgear: 'crown', backGear: 'fuelTanks',
+      hp: 125, speed: 278, fireRate: 1.15, dashes: 2,
+      passive: '+2.5 HP/sec Bio-Regen & +1 Multi-Shot.',
+      ultDesc: 'Solar Flare: Vaporizes nearby swarms & showers XP.',
+      stats: { multiShot: 1, regen: 2.5 }
+    },
+    {
+      id: 'astra', name: 'Valkyrie Astra', role: 'Celestial Lancer', weapon: 'starlight',
+      gearSummary: 'Seraphic Wings & Solar Halo',
+      primary: '#ec4899', secondary: '#831843', accent: '#fde047', visor: '#fbcfe8', skin: '#ffdbac',
+      headgear: 'halo', backGear: 'wings',
+      hp: 125, speed: 305, fireRate: 1.18, dashes: 3,
+      passive: 'Golden Wings: 3 Dashes & +12% Move Speed.',
+      ultDesc: 'Valkyrie Descent: Unleashes 24 radiant star-lances.',
+      stats: { projSpeed: 0.22, dashNova: 1 }
+    },
+    {
+      id: 'volt', name: 'Tesla Volt', role: 'Arc Conduit', weapon: 'arc',
+      gearSummary: 'Storm Fin & Capacitor Pack',
+      primary: '#38bdf8', secondary: '#0c4a6e', accent: '#fde047', visor: '#bae6fd', skin: '#e0ac69',
+      headgear: 'mohawk', backGear: 'jetpack',
+      hp: 125, speed: 290, fireRate: 1.25, dashes: 2,
+      passive: '+25% Fire Rate & Electric Dash Shockwaves.',
+      ultDesc: 'Chain Lightning Storm: Zaps all hostiles with arc bolts.',
+      stats: { fireRate: 0.25, dashNova: 1 }
+    },
+    {
+      id: 'glacia', name: 'Frostbite Glacia', role: 'Cryo Specialist', weapon: 'cryo',
+      gearSummary: 'Permafrost Cowl & Cape',
+      primary: '#22d3ee', secondary: '#155e75', accent: '#e0f2fe', visor: '#cffafe', skin: '#ffdbac',
+      headgear: 'hood', backGear: 'cape',
+      hp: 125, speed: 276, fireRate: 1.15, dashes: 2,
+      passive: 'Cryo Mastery: +1 Pierce & +25% Splash Area.',
+      ultDesc: 'Absolute Zero: Deep-freezes every alien on screen.',
+      stats: { pierce: 1, area: 0.25 }
+    },
+    {
+      id: 'lyra', name: 'Medic Lyra', role: 'Bio-Synth Weaver', weapon: 'nanite',
+      gearSummary: 'Bio-Halo & Angelic Wings',
+      primary: '#14b8a6', secondary: '#115e59', accent: '#fda4af', visor: '#99f6e4', skin: '#f1c27d',
+      headgear: 'halo', backGear: 'wings',
+      hp: 135, speed: 282, fireRate: 1.16, dashes: 2,
+      passive: '+3.5 HP/sec Regen & +3 HP healed on every kill.',
+      ultDesc: 'Nano-Restore: Heals 65 HP + emerald shockwave pulse.',
+      stats: { regen: 3.5, lifeSteal: 3 }
+    },
+    {
+      id: 'rex', name: 'Demolitionist Rex', role: 'Heavy Ordnance', weapon: 'missile',
+      gearSummary: 'Ballistic Goggles & Munition Pod',
+      primary: '#fb7185', secondary: '#881337', accent: '#fbbf24', visor: '#fecdd3', skin: '#c68642',
+      headgear: 'goggles', backGear: 'dronePack',
+      hp: 145, speed: 265, fireRate: 1.14, dashes: 2,
+      passive: '+30% Splash Radius & +20% Raw Damage.',
+      ultDesc: 'Cluster Carpet Bomb: Fires 22 explosive warheads.',
+      stats: { damage: 0.20, area: 0.30 }
+    },
+    {
+      id: 'kai', name: 'Monk Kai', role: 'Kinetic Striker', weapon: 'chi',
+      gearSummary: 'Dragon Circlet & Silk Cape',
+      primary: '#f59e0b', secondary: '#78350f', accent: '#34d399', visor: '#fde68a', skin: '#e0ac69',
+      headgear: 'crown', backGear: 'cape',
+      hp: 130, speed: 305, fireRate: 1.22, dashes: 3,
+      passive: '3 Dashes, +22% Fire Rate & +2 Orbiting Spirit Blades.',
+      ultDesc: 'Dragon Spiral: Unleashes 24 spinning kinetic blades.',
+      stats: { fireRate: 0.22, orbitShields: 2 }
+    },
+    {
+      id: 'nyx', name: 'Oracle Nyx', role: 'Void Mathematician', weapon: 'singularity',
+      gearSummary: 'Astral Halo & Eclipse Wings',
+      primary: '#8b5cf6', secondary: '#2e1065', accent: '#fbbf24', visor: '#ddd6fe', skin: '#ffdbac',
+      headgear: 'halo', backGear: 'wings',
+      hp: 120, speed: 280, fireRate: 1.15, dashes: 2,
+      passive: '+1 Multi-Shot, +25% Crit Damage & +20% Breach Gold.',
+      ultDesc: 'Singularity Collapse: Crushes & stuns all enemies.',
+      stats: { multiShot: 1, critDmg: 0.25, greed: 0.20 }
+    }
+  ];
+
+  // =========================================================================
+  // 5. FULL-BODY 3D-SHADED SVG PORTRAIT GENERATOR (HEAD TO BOOTS + WEAPON)
+  // =========================================================================
+  function buildOperativeSVG(hero) {
+    const uid = `fb_${hero.id}`;
+    const wMeta = WEAPON_CATALOG[hero.weapon];
+    const wepColor = TIER_STYLES[1].color;
+
+    let backMarkup = '';
+    if (hero.backGear === 'wings') {
+      backMarkup = `
+        <path d="M32 48 L6 24 L26 34 L16 14 L38 34 Z" fill="${hero.accent}" stroke="#ffffff" stroke-width="0.9"/>
+        <path d="M68 48 L94 24 L74 34 L84 14 L62 34 Z" fill="${hero.accent}" stroke="#ffffff" stroke-width="0.9"/>
+      `;
+    } else if (hero.backGear === 'cape') {
+      backMarkup = `
+        <path d="M30 42 L18 106 L82 106 L70 42 Z" fill="${hero.secondary}" stroke="${hero.accent}" stroke-width="1.5"/>
+        <path d="M38 46 L30 106 M62 46 L70 106" stroke="${hero.primary}" stroke-width="1.2" opacity="0.5"/>
+      `;
+    } else if (hero.backGear === 'jetpack' || hero.backGear === 'thrusters') {
+      backMarkup = `
+        <rect x="24" y="36" width="10" height="28" rx="3.5" fill="#1e293b" stroke="${hero.accent}" stroke-width="1.4"/>
+        <rect x="66" y="36" width="10" height="28" rx="3.5" fill="#1e293b" stroke="${hero.accent}" stroke-width="1.4"/>
+        <polygon points="26,64 32,64 29,74" fill="${hero.visor}"/>
+        <polygon points="68,64 74,64 71,74" fill="${hero.visor}"/>
+      `;
+    } else {
+      backMarkup = `
+        <rect x="25" y="35" width="9" height="26" rx="4.5" fill="${hero.primary}" stroke="#ffffff" stroke-width="1"/>
+        <rect x="66" y="35" width="9" height="26" rx="4.5" fill="${hero.primary}" stroke="#ffffff" stroke-width="1"/>
+      `;
+    }
+
+    let headMarkup = '';
+    if (hero.headgear === 'techVisor') {
+      headMarkup = `
+        <circle cx="50" cy="24" r="13" fill="url(#${uid}_armor)" stroke="${hero.accent}" stroke-width="1.4"/>
+        <path d="M38 21 Q50 17 62 21 L60 29 Q50 32 40 29 Z" fill="${hero.visor}" filter="url(#${uid}_glow)"/>
+        <line x1="42" y1="22" x2="55" y2="21.5" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+      `;
+    } else if (hero.headgear === 'hood') {
+      headMarkup = `
+        <path d="M33 32 Q50 4 67 32 L63 39 L37 39 Z" fill="${hero.secondary}" stroke="${hero.accent}" stroke-width="1.5"/>
+        <circle cx="50" cy="26" r="9.5" fill="#090d16"/>
+        <ellipse cx="46" cy="25" rx="2.8" ry="1.6" fill="${hero.visor}" filter="url(#${uid}_glow)"/>
+        <ellipse cx="54" cy="25" rx="2.8" ry="1.6" fill="${hero.visor}" filter="url(#${uid}_glow)"/>
+      `;
+    } else if (hero.headgear === 'heavyHelm') {
+      headMarkup = `
+        <rect x="35" y="10" width="30" height="26" rx="8" fill="url(#${uid}_armor)" stroke="${hero.accent}" stroke-width="1.8"/>
+        <rect x="39" y="19" width="22" height="6" rx="2.5" fill="${hero.visor}" filter="url(#${uid}_glow)"/>
+        <line x1="50" y1="10" x2="50" y2="18" stroke="${hero.accent}" stroke-width="2.4"/>
+      `;
+    } else if (hero.headgear === 'goggles') {
+      headMarkup = `
+        <circle cx="50" cy="25" r="12" fill="${hero.skin}"/>
+        <path d="M38 21 Q50 9 62 21 Z" fill="${hero.secondary}"/>
+        <circle cx="44" cy="22" r="4.8" fill="#0f172a" stroke="${hero.accent}" stroke-width="1.6"/>
+        <circle cx="56" cy="22" r="4.8" fill="#0f172a" stroke="${hero.accent}" stroke-width="1.6"/>
+        <circle cx="44" cy="22" r="2.6" fill="${hero.visor}" filter="url(#${uid}_glow)"/>
+        <circle cx="56" cy="22" r="2.6" fill="${hero.visor}" filter="url(#${uid}_glow)"/>
+      `;
+    } else if (hero.headgear === 'crown') {
+      headMarkup = `
+        <circle cx="50" cy="25" r="12" fill="url(#${uid}_armor)" stroke="${hero.accent}" stroke-width="1.4"/>
+        <polygon points="38,16 42,6 47,13 50,5 53,13 58,6 62,16" fill="${hero.accent}" stroke="#ffffff" stroke-width="0.8"/>
+        <rect x="40" y="22" width="20" height="5" rx="2" fill="${hero.visor}" filter="url(#${uid}_glow)"/>
+      `;
+    } else if (hero.headgear === 'halo') {
+      headMarkup = `
+        <ellipse cx="50" cy="7" rx="13" ry="3.2" fill="none" stroke="${hero.accent}" stroke-width="2" filter="url(#${uid}_glow)"/>
+        <circle cx="50" cy="24" r="12.5" fill="url(#${uid}_armor)" stroke="${hero.accent}" stroke-width="1.4"/>
+        <path d="M39 22 Q50 19 61 22 L59 28 Q50 30 41 28 Z" fill="${hero.visor}" filter="url(#${uid}_glow)"/>
+      `;
+    } else {
+      headMarkup = `
+        <polygon points="50,4 45,15 55,15" fill="${hero.accent}" stroke="#ffffff" stroke-width="0.7"/>
+        <circle cx="50" cy="24" r="12.5" fill="url(#${uid}_armor)" stroke="${hero.accent}" stroke-width="1.4"/>
+        <path d="M39 22 L48 25 L39 28 Z" fill="${hero.visor}" filter="url(#${uid}_glow)"/>
+        <path d="M61 22 L52 25 L61 28 Z" fill="${hero.visor}" filter="url(#${uid}_glow)"/>
+      `;
+    }
+
+    let weaponMarkup = '';
+    if (wMeta.shape === 'katana' || wMeta.shape === 'glaive' || wMeta.shape === 'lance') {
+      weaponMarkup = `
+        <line x1="26" y1="68" x2="84" y2="26" stroke="${wepColor}" stroke-width="3.6" stroke-linecap="round" filter="url(#${uid}_glow)"/>
+        <line x1="26" y1="68" x2="84" y2="26" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>
+      `;
+    } else if (wMeta.shape === 'bow') {
+      weaponMarkup = `
+        <path d="M68 24 Q88 52 68 80" fill="none" stroke="${hero.accent}" stroke-width="3"/>
+        <line x1="68" y1="24" x2="68" y2="80" stroke="#ffffff" stroke-width="1"/>
+        <line x1="54" y1="52" x2="88" y2="52" stroke="${wepColor}" stroke-width="2.4"/>
+      `;
+    } else if (wMeta.shape === 'staff' || wMeta.shape === 'orb') {
+      weaponMarkup = `
+        <line x1="74" y1="20" x2="70" y2="108" stroke="${hero.accent}" stroke-width="3"/>
+        <circle cx="74" cy="18" r="6.5" fill="${wepColor}" stroke="#ffffff" stroke-width="1.2" filter="url(#${uid}_glow)"/>
+      `;
+    } else {
+      weaponMarkup = `
+        <rect x="34" y="52" width="46" height="10" rx="3" fill="#0f172a" stroke="${hero.accent}" stroke-width="1.5"/>
+        <rect x="68" y="54" width="14" height="6" rx="1.5" fill="${wepColor}" filter="url(#${uid}_glow)"/>
+      `;
+    }
+
+    return `
+      <svg viewBox="0 0 100 116" class="w-full h-full">
+        <defs>
+          <radialGradient id="${uid}_bg" cx="50%" cy="35%" r="65%">
+            <stop offset="0%" stop-color="${hero.primary}" stop-opacity="0.45"/>
+            <stop offset="100%" stop-color="#050c0a" stop-opacity="0.98"/>
+          </radialGradient>
+          <linearGradient id="${uid}_armor" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+            <stop offset="35%" stop-color="${hero.primary}"/>
+            <stop offset="100%" stop-color="${hero.secondary}"/>
+          </linearGradient>
+          <filter id="${uid}_glow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="1.8" result="blur"/>
+            <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+          </filter>
+        </defs>
+        <rect width="100" height="116" rx="14" fill="url(#${uid}_bg)"/>
+        <ellipse cx="50" cy="109" rx="28" ry="4.5" fill="#000000" opacity="0.65"/>
+        ${backMarkup}
+        <rect x="36" y="68" width="11" height="32" rx="4" fill="url(#${uid}_armor)" stroke="${hero.accent}" stroke-width="1.2"/>
+        <rect x="53" y="68" width="11" height="32" rx="4" fill="url(#${uid}_armor)" stroke="${hero.accent}" stroke-width="1.2"/>
+        <circle cx="41.5" cy="83" r="3.5" fill="${hero.accent}"/>
+        <circle cx="58.5" cy="83" r="3.5" fill="${hero.accent}"/>
+        <path d="M33 97 L48 97 L49 108 L31 108 Z" fill="#0f172a" stroke="${hero.accent}" stroke-width="1.3"/>
+        <path d="M52 97 L67 97 L69 108 L51 108 Z" fill="#0f172a" stroke="${hero.accent}" stroke-width="1.3"/>
+        <path d="M31 40 L69 40 L65 71 L35 71 Z" fill="url(#${uid}_armor)" stroke="${hero.accent}" stroke-width="1.5"/>
+        <rect x="34" y="65" width="32" height="5.5" rx="2" fill="#0f172a" stroke="${hero.accent}" stroke-width="1.2"/>
+        <rect x="46" y="64" width="8" height="7.5" rx="1.5" fill="${hero.accent}"/>
+        <ellipse cx="29" cy="44" rx="7.5" ry="6" fill="url(#${uid}_armor)" stroke="${hero.accent}" stroke-width="1.4"/>
+        <ellipse cx="71" cy="44" rx="7.5" ry="6" fill="url(#${uid}_armor)" stroke="${hero.accent}" stroke-width="1.4"/>
+        <polygon points="50,45 55,52 50,59 45,52" fill="${hero.visor}" stroke="#ffffff" stroke-width="0.9" filter="url(#${uid}_glow)"/>
+        <rect x="23" y="47" width="8" height="20" rx="3.5" fill="url(#${uid}_armor)" stroke="${hero.accent}" stroke-width="1.1"/>
+        <rect x="69" y="47" width="8" height="20" rx="3.5" fill="url(#${uid}_armor)" stroke="${hero.accent}" stroke-width="1.1"/>
+        ${headMarkup}
+        ${weaponMarkup}
+      </svg>
+    `;
+  }
+
+  // =========================================================================
+  // 6. 10 DISTINCT VIBRANT ALIEN SPECIES (LEVELS 1 TO 10) + WAVE 10 MEGA-ALIENS
+  // =========================================================================
+  const ALIEN_SPECIES = {
+    1: {
+      level: 1, name: 'Xeno-Mite', archetype: 'arachnid',
+      radius: 14, baseHp: 24, baseSpeed: 175, baseDmg: 9, xp: 12, gold: 4,
+      c1: '#84cc16', c2: '#1a2e05', glow: '#bef264', shootCd: 999
+    },
+    2: {
+      level: 2, name: 'Acid Spitter', archetype: 'spitter',
+      radius: 17, baseHp: 38, baseSpeed: 138, baseDmg: 12, xp: 16, gold: 5,
+      c1: '#14b8a6', c2: '#042f2e', glow: '#a3e635', shootCd: 2.2
+    },
+    3: {
+      level: 3, name: 'Razor Stalker', archetype: 'mantis',
+      radius: 19, baseHp: 56, baseSpeed: 205, baseDmg: 15, xp: 22, gold: 7,
+      c1: '#f97316', c2: '#431407', glow: '#fde047', shootCd: 999
+    },
+    4: {
+      level: 4, name: 'Void Weaver', archetype: 'squid',
+      radius: 21, baseHp: 78, baseSpeed: 162, baseDmg: 18, xp: 28, gold: 9,
+      c1: '#a855f7', c2: '#2e1065', glow: '#f0abfc', shootCd: 2.0
+    },
+    5: {
+      level: 5, name: 'Magma Charger', archetype: 'beetle',
+      radius: 25, baseHp: 125, baseSpeed: 152, baseDmg: 22, xp: 36, gold: 11,
+      c1: '#ef4444', c2: '#450a0a', glow: '#fbbf24', shootCd: 999
+    },
+    6: {
+      level: 6, name: 'Cryo-Hydra', archetype: 'hydra',
+      radius: 28, baseHp: 175, baseSpeed: 132, baseDmg: 25, xp: 45, gold: 14,
+      c1: '#06b6d4', c2: '#083344', glow: '#cffafe', shootCd: 1.85
+    },
+    7: {
+      level: 7, name: 'Plasma Goliath', archetype: 'quadwalker',
+      radius: 32, baseHp: 245, baseSpeed: 115, baseDmg: 29, xp: 56, gold: 17,
+      c1: '#3b82f6', c2: '#172554', glow: '#60a5fa', shootCd: 1.75
+    },
+    8: {
+      level: 8, name: 'Necro-Hive Mother', archetype: 'hivemother',
+      radius: 36, baseHp: 340, baseSpeed: 102, baseDmg: 32, xp: 70, gold: 22,
+      c1: '#ec4899', c2: '#500724', glow: '#f9a8d4', shootCd: 3.6, spawnsMites: true
+    },
+    9: {
+      level: 9, name: 'Abyssal Leviathan', archetype: 'leviathan',
+      radius: 40, baseHp: 480, baseSpeed: 124, baseDmg: 38, xp: 90, gold: 28,
+      c1: '#10b981', c2: '#022c22', glow: '#34d399', shootCd: 1.65
+    },
+    10: {
+      level: 10, name: 'Omega Dreadnought', archetype: 'dreadnought',
+      radius: 46, baseHp: 720, baseSpeed: 108, baseDmg: 45, xp: 130, gold: 40,
+      c1: '#e11d48', c2: '#4c0519', glow: '#fbbf24', shootCd: 1.45
+    }
+  };
+
+  function pickAlienLevelForWave(wave) {
+    const table = {
+      1:  [1,1,1,1,1, 2,2, 3],
+      2:  [1,1,1, 2,2,2, 3,3, 4],
+      3:  [1,1, 2,2, 3,3,3, 4,4, 5],
+      4:  [2,2, 3,3, 4,4,4, 5,5, 6],
+      5:  [3, 4,4, 5,5,5, 6,6, 7],
+      6:  [4, 5,5, 6,6,6, 7,7, 8],
+      7:  [5, 6,6, 7,7,7, 8,8, 9],
+      8:  [6, 7,7, 8,8,8, 9,9, 10],
+      9:  [7, 8,8, 9,9,9, 10,10],
+      10: [8, 9,9, 10,10,10]
+    };
+    const pool = table[Math.min(10, Math.max(1, wave))];
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  // =========================================================================
+  // 7. EXPANDED TACTICAL UPGRADE POOL
+  // =========================================================================
+  const STAT_UPGRADES = [
+    { id: 'fireRate',   name: 'Overclocked Trigger',  icon: '⚡', desc: '+18% Attack Speed & Rate of Fire', apply: p => { p.fireRateMult += 0.18; } },
+    { id: 'moveSpeed',  name: 'Kinetic Thrusters',    icon: '👟', desc: '+14% Movement Speed', apply: p => { p.speedMult += 0.14; } },
+    { id: 'extraDash',  name: 'Phase Capacitor',      icon: '💨', desc: '+1 Max Dash Charge & +20% Dash Recharge', apply: p => { p.maxDashes += 1; p.dashCharges = p.maxDashes; p.dashCooldownBase *= 0.80; } },
+    { id: 'dashNova',   name: 'Arc Dash Discharge',   icon: '🌩️', desc: 'Unleashes a high-damage plasma shockwave on every dash', apply: p => { p.dashNovaLevel += 1; } },
+    { id: 'multiShot',  name: 'Split-Chamber Barrel', icon: '🔱', desc: '+1 Extra Projectile on every equipped weapon', apply: p => { p.bonusProjectiles += 1; } },
+    { id: 'pierce',     name: 'Depleted X-Core Rounds',icon: '🎯', desc: '+1 Enemy Penetration (Pierce) & +20% Bullet Speed', apply: p => { p.bonusPierce += 1; p.projSpeedMult += 0.20; } },
+    { id: 'orbitShield',name: 'Orbital X-Blades',     icon: '✡️', desc: '+1 Rotating Algebraic Energy Blade around your hero', apply: p => { p.orbitShields += 1; } },
+    { id: 'crit',       name: 'Precision Crit Optics',icon: '👁️', desc: '+12% Critical Hit Chance & +35% Crit Damage', apply: p => { p.critChance = Math.min(0.85, p.critChance + 0.12); p.critMult += 0.35; } },
+    { id: 'regen',      name: 'Bio-Regen Matrix',     icon: '💚', desc: '+2.5 HP/sec Regeneration & +25 Max HP', apply: p => { p.regen += 2.5; p.bonusMaxHp += 25; recalculateMaxHp(p); p.hp = Math.min(p.maxHp, p.hp + 25); } },
+    { id: 'magnet',     name: 'Graviton Harvester',   icon: '🧲', desc: '+45% Pickup Magnet Range & +25% Scrap Gold', apply: p => { p.magnetRadius *= 1.45; p.xpMult += 0.25; } },
+    { id: 'damage',     name: 'High-Energy Coils',    icon: '🔥', desc: '+22% Global Weapon Damage', apply: p => { p.damageMult += 0.22; } },
+    { id: 'armor',      name: 'Aegis Nanoweave',      icon: '🛡️', desc: '+35 Max HP, Heal 35 HP & +8% Damage Reduction', apply: p => { p.bonusMaxHp += 35; recalculateMaxHp(p); p.hp = Math.min(p.maxHp, p.hp + 35); p.armor = Math.min(0.65, p.armor + 0.08); } }
+  ];
+
+  // =========================================================================
+  // 8. ALGEBRA 1 X-METHOD QUADRATIC ENGINE + VERTICAL STACKED FRACTIONS
+  // =========================================================================
+  function gcd(a, b) {
+    a = Math.abs(a);
+    b = Math.abs(b);
+    while (b !== 0) {
+      const t = b;
+      b = a % b;
+      a = t;
+    }
+    return a || 1;
+  }
+
+  function renderVerticalFraction(num, den) {
+    return `<span class="v-frac"><span class="v-frac-num">${num}</span><span class="v-frac-den">${den}</span></span>`;
+  }
+
+  function formatLinearFactor(coefX, constant) {
+    const xPart = coefX === 1 ? 'x' : `${coefX}x`;
+    if (constant === 0) return `(${xPart})`;
+    return `(${xPart} ${constant >= 0 ? '+' : '-'} ${Math.abs(constant)})`;
+  }
+
+  function formatQuadratic(a, b, c) {
+    let str = a === 1 ? 'x²' : `${a}x²`;
+    if (b !== 0) {
+      const absB = Math.abs(b);
+      str += b > 0 ? ` + ${absB === 1 ? '' : absB}x` : ` - ${absB === 1 ? '' : absB}x`;
+    }
+    if (c !== 0) {
+      str += c > 0 ? ` + ${c}` : ` - ${Math.abs(c)}`;
+    }
+    return str;
+  }
+
+  function generateQuadraticProblem(difficultyMode, currentWave) {
+    let effectiveDiff = difficultyMode;
+    if (difficultyMode === 'intense') {
+      if (currentWave <= 3) effectiveDiff = 'easy';
+      else if (currentWave <= 7) effectiveDiff = 'medium';
+      else effectiveDiff = 'hard';
+    }
+
+    const isSolve = Math.random() < 0.25; // 75% Factoring, 25% Solving
+    let a = 1, p = 1, q = 1, r = 1, s = 1;
+    let attempts = 0;
+
+    while (attempts < 90) {
+      attempts++;
+      if (effectiveDiff === 'easy') {
+        a = 1; p = 1; r = 1;
+        q = (Math.floor(Math.random() * 11) + 1) * (Math.random() < 0.5 ? 1 : -1);
+        s = (Math.floor(Math.random() * 11) + 1) * (Math.random() < 0.5 ? 1 : -1);
+        if (Math.abs(q * s) < 70 && (q + s) !== 0) break;
+      } else if (effectiveDiff === 'medium') {
+        const aPool = [1, 2, 2, 3, 4];
+        a = aPool[Math.floor(Math.random() * aPool.length)];
+        if (a === 1) { p = 1; r = 1; }
+        else if (a === 2) { p = 2; r = 1; }
+        else if (a === 3) { p = 3; r = 1; }
+        else { p = 2; r = 2; }
+        q = (Math.floor(Math.random() * 8) + 1) * (Math.random() < 0.5 ? 1 : -1);
+        s = (Math.floor(Math.random() * 8) + 1) * (Math.random() < 0.5 ? 1 : -1);
+        if (gcd(p, q) === 1 && gcd(r, s) === 1) {
+          const cVal = q * s;
+          if (Math.abs(a * cVal) < 100 && (p * s + q * r) !== 0) break;
+        }
+      } else {
+        const pairs = [[2,1],[3,1],[3,2],[4,1],[4,3],[5,1],[5,2],[6,1]];
+        const chosen = pairs[Math.floor(Math.random() * pairs.length)];
+        p = chosen[0];
+        r = chosen[1];
+        a = p * r;
+        q = (Math.floor(Math.random() * 9) + 1) * (Math.random() < 0.5 ? 1 : -1);
+        s = (Math.floor(Math.random() * 9) + 1) * (Math.random() < 0.5 ? 1 : -1);
+        if (gcd(p, q) === 1 && gcd(r, s) === 1) {
+          const cVal = q * s;
+          if (Math.abs(a * cVal) < 200 && (p * s + q * r) !== 0) break;
+        }
+      }
+    }
+
+    a = p * r;
+    const b = p * s + q * r;
+    const c = q * s;
+    const ac = a * c;
+
+    const m1 = q * r;
+    const m2 = p * s;
+
+    const g1 = gcd(m1, a);
+    const simp1Num = m1 / g1;
+    const simp1Den = a / g1;
+
+    const g2 = gcd(m2, a);
+    const simp2Num = m2 / g2;
+    const simp2Den = a / g2;
+
+    const polyStr = formatQuadratic(a, b, c);
+    const equationStr = isSolve ? `${polyStr} = 0` : polyStr;
+    const taskType = isSolve ? 'SOLVE FOR X:' : 'FACTOR COMPLETELY:';
+
+    let correctAnswerHtml = '';
+    let distractors = [];
+
+    if (!isSolve) {
+      const f1 = formatLinearFactor(simp1Den, simp1Num);
+      const f2 = formatLinearFactor(simp2Den, simp2Num);
+      correctAnswerHtml = f1 === f2 ? `${f1}²` : `${f1}${f2}`;
+
+      const d1f1 = formatLinearFactor(simp1Den, -simp1Num);
+      const d1f2 = formatLinearFactor(simp2Den, -simp2Num);
+      const d1 = d1f1 === d1f2 ? `${d1f1}²` : `${d1f1}${d1f2}`;
+      const d2 = `${formatLinearFactor(1, m1)}${formatLinearFactor(1, m2)}`;
+      const d3 = `${formatLinearFactor(simp1Den, -simp1Num)}${formatLinearFactor(simp2Den, simp2Num)}`;
+
+      const vFrac1 = renderVerticalFraction(simp1Num, simp1Den);
+      const vFrac2 = renderVerticalFraction(simp2Num, simp2Den);
+
+      distractors = [
+        { html: d1, reason: 'Sign Error: Both signs are reversed! Your X-Method numbers m₁ and m₂ must multiply to A·C AND add to B.' },
+        { html: d2, reason: a > 1 ? `Forgot to Divide by a = ${a}: You found m₁ = ${m1} and m₂ = ${m2}, but forgot to place them over a = ${a} and simplify (${vFrac1} and ${vFrac2}).` : 'Factor Pair Error: Double-check the two integers that multiply to A·C and add to B.' },
+        { html: d3, reason: 'Partial Sign Error: One binomial has the wrong sign. Multiply your factors back out using FOIL to check the middle term B.' }
+      ];
+    } else {
+      const fmtRootHtml = (num, den) => {
+        const rootNum = -num;
+        return den === 1 ? `${rootNum}` : renderVerticalFraction(rootNum, den);
+      };
+      const r1 = fmtRootHtml(simp1Num, simp1Den);
+      const r2 = fmtRootHtml(simp2Num, simp2Den);
+      correctAnswerHtml = r1 === r2 ? `x = ${r1}` : `x = ${r1}, &nbsp;x = ${r2}`;
+
+      const w1r1 = fmtRootHtml(-simp1Num, simp1Den);
+      const w1r2 = fmtRootHtml(-simp2Num, simp2Den);
+      const d1 = `x = ${w1r1}, &nbsp;x = ${w1r2}`;
+      const d2 = `x = ${-m1}, &nbsp;x = ${-m2}`;
+      const d3 = `x = ${w1r1}, &nbsp;x = ${r2}`;
+
+      const vFrac1 = renderVerticalFraction(simp1Num, simp1Den);
+      const vFrac2 = renderVerticalFraction(simp2Num, simp2Den);
+
+      distractors = [
+        { html: d1, reason: `Zero-Product Sign Error: From the X-Method fractions (${vFrac1} and ${vFrac2}), setting each factor equal to 0 flips the signs to solve for x!` },
+        { html: d2, reason: a > 1 ? `Forgot to Divide by a = ${a}: After finding m₁ = ${m1} and m₂ = ${m2}, divide both by a = ${a} before solving.` : 'Pair Selection Error: Re-check which two numbers multiply to A·C and add to B.' },
+        { html: d3, reason: `Sign Flip Error on First Root: Remember (px + q) = 0 solves to x = ${renderVerticalFraction('-q', 'p')}.` }
+      ];
+    }
+
+    const used = new Set([correctAnswerHtml]);
+    const finalOptions = [{ html: correctAnswerHtml, isCorrect: true, reason: '' }];
+    for (const d of distractors) {
+      if (!used.has(d.html)) {
+        used.add(d.html);
+        finalOptions.push({ html: d.html, isCorrect: false, reason: d.reason });
+      }
+    }
+    let fallbackOffset = 1;
+    while (finalOptions.length < 4) {
+      const alt = !isSolve
+        ? `${formatLinearFactor(simp1Den, simp1Num + fallbackOffset)}${formatLinearFactor(simp2Den, simp2Num - fallbackOffset)}`
+        : `x = ${-simp1Num + fallbackOffset}, &nbsp;x = ${-simp2Num}`;
+      fallbackOffset++;
+      if (!used.has(alt)) {
+        used.add(alt);
+        finalOptions.push({ html: alt, isCorrect: false, reason: 'Arithmetic Error: Those values do not satisfy both A·C and B in the X-Method diamond.' });
+      }
+    }
+
+    for (let i = finalOptions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [finalOptions[i], finalOptions[j]] = [finalOptions[j], finalOptions[i]];
+    }
+
+    const step1 = `Step 1 (Diamond Setup): Top A·C = (${a})(${c}) = ${ac}, Bottom B = ${b}.`;
+    const step2 = `Step 2 (Find Wings): Two numbers multiplying to ${ac} and adding to ${b} are m₁ = ${m1} and m₂ = ${m2}.`;
+    const step3 = a > 1
+      ? `Step 3 (Divide by a = ${a} & Simplify): ${renderVerticalFraction(m1, a)} → ${renderVerticalFraction(simp1Num, simp1Den)} and ${renderVerticalFraction(m2, a)} → ${renderVerticalFraction(simp2Num, simp2Den)}. Result: ${correctAnswerHtml}.`
+      : `Step 3 (Write Result): Since a = 1, read directly from ${renderVerticalFraction(m1, 1)} and ${renderVerticalFraction(m2, 1)} → ${correctAnswerHtml}.`;
+
+    return {
+      a, b, c, ac, m1, m2,
+      simp1Num, simp1Den, simp2Num, simp2Den,
+      isSolve, taskType, equationStr, correctAnswerHtml,
+      options: finalOptions,
+      steps: [step1, step2, step3]
+    };
+  }
+
+  // =========================================================================
+  // 9. GAME ENGINE STATE (10 WAVES + 5-LIFE 20% MAX-HP INTEGRITY + WAVE INTENSITY)
+  // =========================================================================
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+
+  let selectedHeroId = OPERATIVES[0].id;
+  let selectedDifficulty = 'intense';
+  let selectedIntensity = 'medium';
+
+  const INTENSITY_CONFIG = {
+    easy: {
+      label: 'EASY',
+      short: 'EASY',
+      countMult: 0.75,
+      rateMult: 0.75,
+      hpMult: 0.80,
+      dmgMult: 0.80,
+      speedMult: 0.88,
+      projSpeedMult: 0.90,
+      desc: 'Easy: Relaxed 0.75x alien swarm density & 0.8x alien HP/damage.'
+    },
+    medium: {
+      label: 'MEDIUM',
+      short: 'MED',
+      countMult: 1.0,
+      rateMult: 1.0,
+      hpMult: 1.0,
+      dmgMult: 1.0,
+      speedMult: 1.0,
+      projSpeedMult: 1.0,
+      desc: 'Medium: Standard 1.0x alien spawn rate, swarm cap, HP & speed.'
+    },
+    hard: {
+      label: 'HARD',
+      short: 'HARD',
+      countMult: 1.45,
+      rateMult: 1.40,
+      hpMult: 1.25,
+      dmgMult: 1.25,
+      speedMult: 1.10,
+      projSpeedMult: 1.12,
+      desc: 'Hard: 1.45x swarm cap, 1.4x spawn speed & 1.25x alien HP/damage.'
+    },
+    extreme: {
+      label: 'EXTREME',
+      short: 'EXT',
+      countMult: 2.0,
+      rateMult: 1.85,
+      hpMult: 1.55,
+      dmgMult: 1.55,
+      speedMult: 1.18,
+      projSpeedMult: 1.25,
+      desc: 'Extreme: 2.0x relentless horde, 1.85x spawn speed & 1.55x alien HP/damage.'
+    }
+  };
+
+  function getIntensityCfg() {
+    return INTENSITY_CONFIG[selectedIntensity] || INTENSITY_CONFIG.medium;
+  }
+
+  function setWaveIntensity(level, playAudio = true) {
+    if (!INTENSITY_CONFIG[level]) return;
+    selectedIntensity = level;
+    const cfg = getIntensityCfg();
+
+    document.getElementById('intensityBadge').textContent = cfg.label;
+    document.getElementById('intensityDesc').textContent = cfg.desc;
+    document.getElementById('pauseIntensityBadge').textContent = cfg.label;
+    document.getElementById('hudIntensityTag').textContent = `• ${cfg.short}`;
+
+    document.querySelectorAll('.intensity-btn').forEach(b => {
+      const active = b.dataset.intensity === level;
+      b.classList.toggle('bg-cyan-500/20', active);
+      b.classList.toggle('border-cyan-400', active);
+      b.classList.toggle('shadow-md', active);
+      b.classList.toggle('bg-[#0a1814]', !active);
+      b.classList.toggle('border-emerald-500/25', !active);
+    });
+
+    document.querySelectorAll('.pause-intensity-btn').forEach(b => {
+      const active = b.dataset.intensity === level;
+      b.classList.toggle('bg-cyan-500/20', active);
+      b.classList.toggle('border-cyan-400', active);
+      b.classList.toggle('bg-[#0a1814]', !active);
+      b.classList.toggle('border-emerald-500/25', !active);
+    });
+
+    if (playAudio) sfx.play('xp');
+  }
+
+  const STATE = {
+    mode: 'TITLE',
+    width: window.innerWidth,
+    height: window.innerHeight,
+    time: 0,
+    wave: 1,
+    maxWaves: 10,
+    waveDuration: 120,
+    waveTimer: 120,
+    breachTriggers: [90, 60, 30], // 01:30, 01:00, 00:30 (+ 00:00 End-of-Wave)
+    triggeredBreaches: new Set(),
+    autoAim: true,
+    mouse: { x: 0, y: 0, down: false },
+    keys: {},
+    joystick: { active: false, dx: 0, dy: 0 },
+    cameraShake: 0,
+    rerollCost: 15,
+    stats: { kills: 0, mathAttempted: 0, mathCorrect: 0 },
+    player: null,
+    weapons: [],
+    enemies: [],
+    projectiles: [],
+    enemyProjectiles: [],
+    gems: [],
+    crates: [],
+    particles: [],
+    floatingTexts: [],
+    shockwaves: [],
+    spawnAccumulator: 0
+  };
+
+  function resizeCanvas() {
+    STATE.width = window.innerWidth;
+    STATE.height = window.innerHeight;
+    canvas.width = STATE.width;
+    canvas.height = STATE.height;
+    if (STATE.mode === 'MATH') fitMathChoiceLabels();
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  // =========================================================================
+  // 10. TITLE ROSTER & DIFFICULTY UI (ALL 16 OPERATIVES)
+  // =========================================================================
+  function renderTitleRoster() {
+    const grid = document.getElementById('heroGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    OPERATIVES.forEach(hero => {
+      const isSelected = hero.id === selectedHeroId;
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = `p-2.5 rounded-2xl border text-left transition flex flex-col items-center gap-1.5 cursor-pointer ${
+        isSelected
+          ? 'bg-emerald-500/20 border-amber-400 shadow-lg shadow-emerald-500/15 scale-[1.02]'
+          : 'bg-[#06100d] border-emerald-500/20 hover:border-emerald-400/60'
+      }`;
+      card.innerHTML = `
+        <div class="w-16 h-20 rounded-xl overflow-hidden border border-emerald-500/35">${buildOperativeSVG(hero)}</div>
+        <div class="font-display font-bold text-xs text-white text-center truncate w-full">${hero.name}</div>
+        <div class="text-[10px] font-mono-code text-amber-300/90 truncate w-full text-center">${WEAPON_CATALOG[hero.weapon].name}</div>
+      `;
+      card.addEventListener('click', () => {
+        selectedHeroId = hero.id;
+        sfx.play('xp');
+        updateSelectedHeroPanel();
+        renderTitleRoster();
+      });
+      grid.appendChild(card);
+    });
+  }
+
+  function updateSelectedHeroPanel() {
+    const hero = OPERATIVES.find(h => h.id === selectedHeroId) || OPERATIVES[0];
+    document.getElementById('selHeroPortrait').innerHTML = buildOperativeSVG(hero);
+    document.getElementById('selHeroName').textContent = hero.name;
+    document.getElementById('selHeroRole').textContent = hero.role;
+    document.getElementById('selHeroGear').textContent = `Gear: ${hero.gearSummary}`;
+    document.getElementById('selHeroWeapon').textContent = `Weapon: ${WEAPON_CATALOG[hero.weapon].icon} ${WEAPON_CATALOG[hero.weapon].name}`;
+    document.getElementById('selHeroPassive').textContent = `Passive: ${hero.passive}`;
+    document.getElementById('selHeroUlt').textContent = hero.ultDesc;
+    document.getElementById('statHp').textContent = hero.hp;
+    document.getElementById('statSpd').textContent = hero.speed;
+    document.getElementById('statRate').textContent = `${hero.fireRate.toFixed(2)}x`;
+  }
+
+  document.querySelectorAll('.diff-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedDifficulty = btn.dataset.diff;
+      document.getElementById('modeBadge').textContent = selectedDifficulty.toUpperCase();
+      document.querySelectorAll('.diff-btn').forEach(b => {
+        b.classList.remove('bg-emerald-500/20', 'border-amber-400', 'shadow-md');
+        b.classList.add('bg-[#0a1814]', 'border-emerald-500/25');
+      });
+      btn.classList.remove('bg-[#0a1814]', 'border-emerald-500/25');
+      btn.classList.add('bg-emerald-500/20', 'border-amber-400', 'shadow-md');
+
+      const descMap = {
+        easy: 'Easy: Always A = 1 with |A·C| < 70. Ideal for mastering X-Method basics.',
+        medium: 'Medium: Mix of A = 1 and A ≥ 2 with |A·C| < 100.',
+        hard: 'Hard: Leading coefficients A > 1 with |A·C| < 200 requiring fraction simplification.',
+        intense: 'Intense: Waves 1–3 Easy, Waves 4–7 Medium, Waves 8–10 Hard.'
+      };
+      document.getElementById('difficultyDesc').textContent = descMap[selectedDifficulty];
+      sfx.play('xp');
+    });
+  });
+
+  document.querySelectorAll('.intensity-btn, .pause-intensity-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setWaveIntensity(btn.dataset.intensity, true);
+    });
+  });
+
+  setWaveIntensity('medium', false);
+  renderTitleRoster();
+  updateSelectedHeroPanel();
+
+  // =========================================================================
+  // 11. PLAYER & 4-TIER WEAPON MERGING (T1 -> T2 -> T3 -> T4 GOLD)
+  // =========================================================================
+  function createPlayer(hero) {
+    return {
+      hero,
+      x: STATE.width / 2,
+      y: STATE.height / 2,
+      radius: 20,
+      facingAngle: 0,
+      walkCycle: 0,
+      isMoving: false,
+      recoil: 0,
+      deaths: 0,
+      maxDeaths: 5, // 5 lives: -20% Max HP each time; 5th wrong answer/death = Game Over
+      baseMaxHp: hero.hp,
+      bonusMaxHp: 0,
+      hp: hero.hp,
+      maxHp: hero.hp,
+      baseSpeed: hero.speed,
+      speedMult: 1.0,
+      fireRateMult: hero.fireRate,
+      damageMult: 1.0,
+      projSpeedMult: 1.0,
+      critChance: hero.stats.critChance || 0.08,
+      critMult: 1.75 + (hero.stats.critDmg || 0),
+      armor: hero.stats.armor || 0.0,
+      regen: hero.stats.regen || 0.6,
+      lifeSteal: hero.stats.lifeSteal || 0,
+      magnetRadius: 150 * (1 + (hero.stats.magnet || 0)),
+      xpMult: 1.0 + (hero.stats.greed || 0),
+      bonusProjectiles: hero.stats.multiShot || 0,
+      bonusPierce: hero.stats.pierce || 0,
+      areaMult: 1.0 + (hero.stats.area || 0),
+      orbitShields: hero.stats.orbitShields || 0,
+      orbitAngle: 0,
+      dashNovaLevel: hero.stats.dashNova || 0,
+      maxDashes: hero.dashes,
+      dashCharges: hero.dashes,
+      dashCooldownBase: 2.2,
+      dashRechargeTimer: 0,
+      dashActiveTimer: 0,
+      dashDirX: 1,
+      dashDirY: 0,
+      invulnTimer: 0,
+      ultCharge: 100,
+      overclockTimer: 0,
+      xp: 0,
+      xpToNext: 40,
+      level: 1,
+      gold: 30
+    };
+  }
+
+  function recalculateMaxHp(p) {
+    const integrityFactor = Math.max(0.20, 1 - p.deaths * 0.20);
+    p.maxHp = Math.max(20, Math.round((p.baseMaxHp + p.bonusMaxHp) * integrityFactor));
+    if (p.hp > p.maxHp) p.hp = p.maxHp;
+  }
+
+  function handlePlayerDamage(rawDmg) {
+    const p = STATE.player;
+    if (p.invulnTimer > 0) return;
+
+    const taken = Math.max(2, rawDmg * (1 - p.armor));
+    p.hp -= taken;
+    p.invulnTimer = 0.52;
+    STATE.cameraShake = 8;
+    spawnFloatingText(p.x, p.y - 26, `-${Math.round(taken)}`, '#fb7185', 15);
+
+    if (p.hp <= 0) {
+      p.deaths += 1;
+      if (p.deaths >= p.maxDeaths) {
+        p.hp = 0;
+        updateHUD();
+        endGame(false);
+        return;
+      }
+      // Emergency Phase-Revive: -20% Max HP Integrity Penalty & Knockback Shockwave
+      recalculateMaxHp(p);
+      p.hp = p.maxHp;
+      p.invulnTimer = 2.2;
+      STATE.cameraShake = 16;
+      sfx.play('revive');
+
+      STATE.shockwaves.push({ x: p.x, y: p.y, radius: 18, maxRadius: 340, color: '#fbbf24', alpha: 1.0 });
+      STATE.enemies.forEach(e => {
+        const ang = Math.atan2(e.y - p.y, e.x - p.x);
+        if (!e.isBoss) {
+          e.x += Math.cos(ang) * 140;
+          e.y += Math.sin(ang) * 140;
+        }
+        e.stunTimer = Math.max(e.stunTimer, 2.5);
+      });
+      spawnFloatingText(p.x, p.y - 44, `SUIT INTEGRITY -20% (${p.maxDeaths - p.deaths} LIVES LEFT)`, '#fbbf24', 18);
+    }
+  }
+
+  function addOrMergeWeapon(weaponId) {
+    STATE.weapons.push({ id: weaponId, tier: 1, cooldown: 0 });
+    let merged = true;
+    while (merged) {
+      merged = false;
+      for (let t = 1; t <= 3; t++) {
+        const counts = {};
+        STATE.weapons.forEach(w => {
+          if (w.tier === t) counts[w.id] = (counts[w.id] || 0) + 1;
+        });
+        for (const id in counts) {
+          if (counts[id] >= 2) {
+            let removed = 0;
+            STATE.weapons = STATE.weapons.filter(w => {
+              if (w.id === id && w.tier === t && removed < 2) {
+                removed++;
+                return false;
+              }
+              return true;
+            });
+            const nextTier = t + 1;
+            STATE.weapons.push({ id, tier: nextTier, cooldown: 0 });
+            const tierStyle = TIER_STYLES[nextTier];
+            spawnFloatingText(
+              STATE.player.x,
+              STATE.player.y - 40,
+              nextTier === 4 ? `★ FORGED TIER 4 SOVEREIGN GOLD! ★` : `UPGRADED TO ${tierStyle.label}!`,
+              tierStyle.color,
+              nextTier === 4 ? 20 : 17
+            );
+            sfx.play('levelup');
+            merged = true;
+            break;
+          }
+        }
+        if (merged) break;
+      }
+    }
+    if (STATE.weapons.length > 6) {
+      STATE.weapons = STATE.weapons.slice(0, 6);
+    }
+    updateHUDWeapons();
+  }
+
+  // =========================================================================
+  // 12. 10-SPECIES ALIEN SPAWNER & WAVE 10 MEGA-ALIENS ("TOKAR" & "BAKER")
+  // =========================================================================
+  function getPerimeterSpawnPos() {
+    const pad = 28;
+    const side = Math.floor(Math.random() * 4);
+    if (side === 0) return { x: Math.random() * STATE.width, y: -pad };
+    if (side === 1) return { x: STATE.width + pad, y: Math.random() * STATE.height };
+    if (side === 2) return { x: Math.random() * STATE.width, y: STATE.height + pad };
+    return { x: -pad, y: Math.random() * STATE.height };
+  }
+
+  function spawnAlienByLevel(alienLevel, posOverride = null) {
+    const spec = ALIEN_SPECIES[alienLevel] || ALIEN_SPECIES[1];
+    const pos = posOverride || getPerimeterSpawnPos();
+    const icfg = getIntensityCfg();
+    const waveScale = (1 + (STATE.wave - 1) * 0.12) * icfg.hpMult;
+    const speedScale = (1 + Math.min(0.35, (STATE.wave - 1) * 0.03)) * icfg.speedMult;
+
+    STATE.enemies.push({
+      alienLevel: spec.level,
+      archetype: spec.archetype,
+      name: spec.name,
+      isBoss: false,
+      bossLabel: null,
+      x: pos.x,
+      y: pos.y,
+      radius: spec.radius,
+      hp: Math.round(spec.baseHp * waveScale),
+      maxHp: Math.round(spec.baseHp * waveScale),
+      speed: spec.baseSpeed * speedScale,
+      dmg: Math.round(spec.baseDmg * (1 + (STATE.wave - 1) * 0.08) * icfg.dmgMult),
+      xp: spec.xp,
+      gold: spec.gold,
+      color1: spec.c1,
+      color2: spec.c2,
+      glow: spec.glow,
+      legPhase: Math.random() * Math.PI * 2,
+      hitFlash: 0,
+      stunTimer: 0,
+      chillTimer: 0,
+      shootTimer: spec.shootCd * (0.4 + Math.random() * 0.5),
+      shootCd: spec.shootCd,
+      spawnsMites: !!spec.spawnsMites
+    });
+  }
+
+  function spawnWave10MegaBoss(bossKey, pos) {
+    const icfg = getIntensityCfg();
+    const lv10Wave10Hp = Math.round(ALIEN_SPECIES[10].baseHp * (1 + 9 * 0.12) * icfg.hpMult);
+    const megaHp = lv10Wave10Hp * 2 * 6;
+    const isTokar = bossKey === 'TOKAR';
+
+    STATE.enemies.push({
+      alienLevel: 10,
+      archetype: isTokar ? 'megaTokar' : 'megaBaker',
+      name: bossKey,
+      isBoss: true,
+      bossLabel: bossKey,
+      x: pos.x,
+      y: pos.y,
+      radius: 68,
+      hp: megaHp,
+      maxHp: megaHp,
+      speed: (isTokar ? 128 : 118) * icfg.speedMult,
+      dmg: Math.round(48 * icfg.dmgMult),
+      xp: 500,
+      gold: 250,
+      color1: isTokar ? '#e11d48' : '#10b981',
+      color2: isTokar ? '#4c0519' : '#022c22',
+      glow: '#fbbf24',
+      legPhase: 0,
+      hitFlash: 0,
+      stunTimer: 0,
+      chillTimer: 0,
+      shootTimer: 1.2,
+      shootCd: isTokar ? 1.45 : 1.65,
+      spawnsMites: false
+    });
+  }
+
+  function startWave(waveNum) {
+    STATE.wave = waveNum;
+    STATE.waveTimer = STATE.waveDuration;
+    STATE.triggeredBreaches.clear();
+    STATE.enemyProjectiles = [];
+
+    const icfg = getIntensityCfg();
+    const openingPack = Math.max(8, Math.round(Math.min(30, 18 + (waveNum - 1) * 1.5) * icfg.countMult));
+    for (let i = 0; i < openingPack; i++) {
+      spawnAlienByLevel(pickAlienLevelForWave(waveNum));
+    }
+
+    STATE.crates = [];
+    for (let i = 0; i < 2; i++) {
+      STATE.crates.push({
+        x: 110 + Math.random() * (STATE.width - 220),
+        y: 125 + Math.random() * (STATE.height - 250),
+        pulse: Math.random() * Math.PI * 2
+      });
+    }
+
+    const bossHud = document.getElementById('hudBossContainer');
+    if (waveNum === 10) {
+      bossHud.classList.remove('hidden');
+      spawnWave10MegaBoss('TOKAR', { x: STATE.width * 0.25, y: 110 });
+      spawnWave10MegaBoss('BAKER', { x: STATE.width * 0.75, y: 110 });
+      spawnFloatingText(STATE.width / 2, STATE.height * 0.28, 'MEGA-ALIEN TITANS: TOKAR & BAKER!', '#fbbf24', 24);
+    } else {
+      bossHud.classList.add('hidden');
+    }
+
+    updateHUD();
+  }
+
+  // =========================================================================
+  // 13. COMBAT ACTIONS: DASH, ULTIMATE, DAMAGE & PARTICLES
+  // =========================================================================
+  function triggerDash() {
+    if (STATE.mode !== 'PLAYING') return;
+    const p = STATE.player;
+    if (p.dashCharges <= 0 || p.dashActiveTimer > 0) return;
+
+    p.dashCharges -= 1;
+    p.dashActiveTimer = 0.18;
+    p.invulnTimer = 0.30;
+
+    let dx = 0, dy = 0;
+    if (STATE.keys['KeyW'] || STATE.keys['ArrowUp']) dy -= 1;
+    if (STATE.keys['KeyS'] || STATE.keys['ArrowDown']) dy += 1;
+    if (STATE.keys['KeyA'] || STATE.keys['ArrowLeft']) dx -= 1;
+    if (STATE.keys['KeyD'] || STATE.keys['ArrowRight']) dx += 1;
+    if (STATE.joystick.active) {
+      dx = STATE.joystick.dx;
+      dy = STATE.joystick.dy;
+    }
+    const len = Math.hypot(dx, dy);
+    if (len > 0.05) {
+      p.dashDirX = dx / len;
+      p.dashDirY = dy / len;
+    } else {
+      p.dashDirX = Math.cos(p.facingAngle);
+      p.dashDirY = Math.sin(p.facingAngle);
+    }
+
+    sfx.play('dash');
+    STATE.shockwaves.push({ x: p.x, y: p.y, radius: 10, maxRadius: 80, color: '#38bdf8', alpha: 0.9 });
+
+    if (p.dashNovaLevel > 0) {
+      const novaRadius = 135 + p.dashNovaLevel * 28;
+      const novaDmg = (52 + p.dashNovaLevel * 32) * p.damageMult;
+      STATE.shockwaves.push({ x: p.x, y: p.y, radius: 15, maxRadius: novaRadius, color: '#fbbf24', alpha: 1.0 });
+      STATE.enemies.forEach(e => {
+        if (Math.hypot(e.x - p.x, e.y - p.y) <= novaRadius + e.radius) {
+          damageEnemy(e, novaDmg, true);
+          e.stunTimer = Math.max(e.stunTimer, 1.2);
+        }
+      });
+    }
+  }
+
+  function triggerUltimate() {
+    if (STATE.mode !== 'PLAYING') return;
+    const p = STATE.player;
+    if (p.ultCharge < 100) return;
+    p.ultCharge = 0;
+    STATE.cameraShake = 12;
+    sfx.play('ult');
+
+    const id = p.hero.id;
+    STATE.shockwaves.push({ x: p.x, y: p.y, radius: 20, maxRadius: 300, color: p.hero.accent, alpha: 1.0 });
+    spawnFloatingText(p.x, p.y - 42, `${p.hero.name.toUpperCase()} ULTIMATE!`, '#fbbf24', 20);
+
+    if (id === 'lyra' || id === 'terra') {
+      const heal = 65;
+      p.hp = Math.min(p.maxHp, p.hp + heal);
+      spawnFloatingText(p.x, p.y - 22, `+${heal} HP`, '#34d399', 18);
+    }
+    if (id === 'ada') {
+      p.overclockTimer = 5.0;
+    }
+    if (id === 'rook' || id === 'glacia' || id === 'euclid') {
+      STATE.enemies.forEach(e => {
+        e.stunTimer = 4.0;
+        e.chillTimer = 5.0;
+        damageEnemy(e, 75 * p.damageMult, false);
+      });
+      if (id === 'euclid') {
+        STATE.gems.forEach(g => { g.magnetized = true; });
+      }
+      return;
+    }
+
+    const count = 24;
+    for (let i = 0; i < count; i++) {
+      const ang = (Math.PI * 2 * i) / count;
+      STATE.projectiles.push({
+        x: p.x,
+        y: p.y,
+        vx: Math.cos(ang) * 800,
+        vy: Math.sin(ang) * 800,
+        radius: 10,
+        dmg: 95 * p.damageMult,
+        pierce: 4,
+        life: 1.2,
+        color: '#fbbf24',
+        isGold: true,
+        crit: true,
+        explode: 72
+      });
+    }
+  }
+
+  function damageEnemy(enemy, amount, isCrit = false) {
+    enemy.hp -= amount;
+    enemy.hitFlash = 0.08;
+    if (isCrit) {
+      spawnFloatingText(enemy.x, enemy.y - enemy.radius - 6, `${Math.round(amount)}!`, '#fbbf24', 15);
+    }
+    if (enemy.hp <= 0 && !enemy.dead) {
+      enemy.dead = true;
+      STATE.stats.kills += 1;
+      const p = STATE.player;
+      p.ultCharge = Math.min(100, p.ultCharge + (enemy.isBoss ? 50 : 3.8));
+      if (p.lifeSteal > 0) {
+        p.hp = Math.min(p.maxHp, p.hp + p.lifeSteal);
+      }
+
+      STATE.gems.push({
+        x: enemy.x,
+        y: enemy.y,
+        xp: Math.round(enemy.xp * p.xpMult),
+        gold: Math.round(enemy.gold * p.xpMult),
+        isBoss: enemy.isBoss || enemy.alienLevel >= 7,
+        magnetized: false
+      });
+
+      const burstCount = enemy.isBoss ? 36 : (6 + enemy.alienLevel);
+      for (let i = 0; i < burstCount; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const spd = 65 + Math.random() * 210;
+        STATE.particles.push({
+          x: enemy.x,
+          y: enemy.y,
+          vx: Math.cos(a) * spd,
+          vy: Math.sin(a) * spd,
+          life: 0.35 + Math.random() * 0.25,
+          maxLife: 0.6,
+          size: 3 + Math.random() * 4.5,
+          color: i % 2 === 0 ? enemy.color1 : enemy.glow
+        });
+      }
+      sfx.play('kill');
+    }
+  }
+
+  function spawnFloatingText(x, y, text, color = '#ffffff', size = 14) {
+    STATE.floatingTexts.push({ x, y, text, color, size, life: 0.85, maxLife: 0.85 });
+  }
+
+  // =========================================================================
+  // 14. QUADRATIC BREACH MODAL, VERTICAL FRACTIONS & MANDATORY CONTINUE
+  // =========================================================================
+  let activeProblem = null;
+  let breachIsEndOfWave = false;
+  let breachResolved = false;
+  let lastAnswerCorrect = false;
+  let lastBonusGold = 0;
+
+  function fitMathChoiceLabels() {
+    const buttons = document.querySelectorAll('.math-opt-btn');
+    buttons.forEach(btn => {
+      const label = btn.querySelector('.math-choice-text');
+      const badge = btn.firstElementChild;
+      if (!label || !badge) return;
+
+      const styles = getComputedStyle(btn);
+      const padLeft = parseFloat(styles.paddingLeft) || 12;
+      const padRight = parseFloat(styles.paddingRight) || 12;
+      const gap = parseFloat(styles.columnGap || styles.gap) || 10;
+      const maxWidth = btn.clientWidth - padLeft - padRight - badge.offsetWidth - gap - 2;
+
+      let fontSize = 15;
+      const minFontSize = 10;
+      label.style.fontSize = `${fontSize}px`;
+      label.style.whiteSpace = 'nowrap';
+
+      while (label.scrollWidth > maxWidth && fontSize > minFontSize) {
+        fontSize -= 0.5;
+        label.style.fontSize = `${fontSize}px`;
+      }
+    });
+  }
+
+  function openQuadraticBreach(tagText, isEndOfWave = false) {
+    STATE.mode = 'MATH';
+    breachIsEndOfWave = isEndOfWave;
+    breachResolved = false;
+    lastAnswerCorrect = false;
+    lastBonusGold = 0;
+
+    const prob = generateQuadraticProblem(selectedDifficulty, STATE.wave);
+    activeProblem = prob;
+
+    document.getElementById('mathBreachTag').textContent = tagText;
+    document.getElementById('mathModeLabel').textContent = `MODE: ${selectedDifficulty.toUpperCase()} (WAVE ${STATE.wave})`;
+    document.getElementById('mathTaskType').textContent = prob.taskType;
+    document.getElementById('mathEquation').textContent = prob.equationStr;
+    document.getElementById('mathHintSub').textContent = prob.isSolve
+      ? 'Factor with the X-Method first, then set each factor = 0 to solve for x.'
+      : 'Find m₁ and m₂ that multiply to A·C and add to B, then divide by a.';
+
+    document.getElementById('xTopVal').textContent = prob.ac;
+    document.getElementById('xBotVal').textContent = prob.b;
+    document.getElementById('xLeftTop').textContent = '?';
+    document.getElementById('xLeftBot').textContent = prob.a;
+    document.getElementById('xRightTop').textContent = '?';
+    document.getElementById('xRightBot').textContent = prob.a;
+    document.getElementById('xSimplifiedNote').innerHTML = '';
+
+    ['xQuadTop', 'xQuadBot', 'xQuadLeft', 'xQuadRight'].forEach(id => {
+      document.getElementById(id).setAttribute('opacity', '0.05');
+    });
+
+    document.getElementById('mathFeedbackBox').classList.add('hidden');
+
+    const choicesGrid = document.getElementById('mathChoices');
+    choicesGrid.innerHTML = '';
+    const letters = ['A', 'B', 'C', 'D'];
+    prob.options.forEach((opt, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.isCorrect = opt.isCorrect ? '1' : '0';
+      btn.className = 'math-opt-btn w-full min-w-0 overflow-hidden px-3 py-3 rounded-2xl bg-[#06100d] hover:bg-emerald-950/80 border-2 border-emerald-500/35 hover:border-amber-400 text-left transition flex items-center gap-2.5 cursor-pointer';
+      btn.innerHTML = `
+        <span class="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center font-mono-code font-extrabold text-xs text-amber-300 shrink-0">${letters[idx]}</span>
+        <span class="math-choice-text font-mono-code font-bold text-white whitespace-nowrap inline-flex items-center leading-tight">${opt.html}</span>
+      `;
+      btn.addEventListener('click', () => handleMathChoice(opt, btn));
+      choicesGrid.appendChild(btn);
+    });
+
+    document.getElementById('mathModal').classList.remove('hidden');
+    requestAnimationFrame(() => {
+      fitMathChoiceLabels();
+    });
+  }
+
+  function revealXMethodDiamond(prob, illuminateAll = false) {
+    document.getElementById('xLeftTop').textContent = prob.m1;
+    document.getElementById('xRightTop').textContent = prob.m2;
+    if (illuminateAll) {
+      ['xQuadTop', 'xQuadBot', 'xQuadLeft', 'xQuadRight'].forEach(id => {
+        document.getElementById(id).setAttribute('opacity', '0.20');
+      });
+    }
+    const noteEl = document.getElementById('xSimplifiedNote');
+    if (prob.a > 1) {
+      noteEl.innerHTML =
+        `<span>Simplified:</span> ${renderVerticalFraction(prob.m1, prob.a)} <span>=</span> ${renderVerticalFraction(prob.simp1Num, prob.simp1Den)} <span>&amp;</span> ${renderVerticalFraction(prob.m2, prob.a)} <span>=</span> ${renderVerticalFraction(prob.simp2Num, prob.simp2Den)}`;
+    } else {
+      noteEl.innerHTML =
+        `<span>Verified: (${prob.m1})(${prob.m2}) = ${prob.ac} and ${prob.m1} + ${prob.m2} = ${prob.b}</span>`;
+    }
+  }
+
+  function handleMathChoice(option, btnEl) {
+    if (breachResolved) return;
+    breachResolved = true;
+    STATE.stats.mathAttempted += 1;
+
+    document.querySelectorAll('.math-opt-btn').forEach(b => {
+      b.disabled = true;
+      b.classList.add('opacity-75');
+    });
+
+    const feedbackBox = document.getElementById('mathFeedbackBox');
+    const feedbackIcon = document.getElementById('mathFeedbackIcon');
+    const feedbackTitle = document.getElementById('mathFeedbackTitle');
+    const diagnosisText = document.getElementById('mathDiagnosisText');
+    const stepsContainer = document.getElementById('mathStepsText');
+    const continueBtn = document.getElementById('btnContinueBreach');
+
+    if (option.isCorrect) {
+      lastAnswerCorrect = true;
+      STATE.stats.mathCorrect += 1;
+      sfx.play('correct');
+      revealXMethodDiamond(activeProblem, false);
+      btnEl.classList.remove('border-emerald-500/35', 'opacity-75');
+      btnEl.classList.add('bg-emerald-500/30', 'border-emerald-300');
+
+      const p = STATE.player;
+      lastBonusGold = 25 + STATE.wave * 5;
+      p.gold += lastBonusGold;
+      p.hp = Math.min(p.maxHp, p.hp + 25);
+      p.ultCharge = Math.min(100, p.ultCharge + 35);
+      updateHUD();
+
+      // Clearly show CORRECT banner & wait for Continue button click
+      feedbackBox.className = 'mt-4 bg-emerald-950/75 border-2 border-emerald-400/80 rounded-2xl p-4';
+      feedbackIcon.textContent = '✅';
+      feedbackTitle.className = 'font-display font-extrabold text-emerald-300 text-sm sm:text-base tracking-wide';
+      feedbackTitle.textContent = 'CORRECT! — X-METHOD VERIFIED';
+      diagnosisText.className = 'text-xs sm:text-sm text-emerald-100 mt-1';
+      diagnosisText.innerHTML = `Great job! You earned <span class="text-amber-300 font-bold">+${lastBonusGold} ⬡ Scrap</span>, <span class="text-emerald-300 font-bold">+25 HP</span>, <span class="text-cyan-300 font-bold">+35% Ultimate</span>, and an <span class="text-amber-300 font-bold">X-Stun Shockwave</span> upon continuing.`;
+      stepsContainer.innerHTML = activeProblem.steps.map(s => `<div class="flex flex-wrap items-center gap-1">${s}</div>`).join('');
+      continueBtn.className = 'px-5 py-2.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-display font-extrabold text-sm shadow-lg transition cursor-pointer';
+      continueBtn.textContent = 'Continue Battle (Enter) ▶';
+      feedbackBox.classList.remove('hidden');
+    } else {
+      lastAnswerCorrect = false;
+      sfx.play('wrong');
+      revealXMethodDiamond(activeProblem, true);
+      btnEl.classList.remove('border-emerald-500/35', 'opacity-75');
+      btnEl.classList.add('bg-rose-500/30', 'border-rose-400');
+
+      document.querySelectorAll('.math-opt-btn').forEach(b => {
+        if (b.dataset.isCorrect === '1') {
+          b.classList.remove('opacity-75');
+          b.classList.add('bg-emerald-500/25', 'border-emerald-400');
+        }
+      });
+
+      // Apply 20% Max Health Penalty (5th wrong answer/death = Game Over)
+      const p = STATE.player;
+      p.deaths += 1;
+      const isFatal = p.deaths >= p.maxDeaths;
+      if (isFatal) {
+        p.hp = 0;
+      } else {
+        recalculateMaxHp(p);
+      }
+      updateHUD();
+
+      const remainingLives = Math.max(0, p.maxDeaths - p.deaths);
+      const integrityPct = Math.max(0, 100 - p.deaths * 20);
+
+      // Clearly show INCORRECT banner & wait for Continue button click
+      feedbackBox.className = 'mt-4 bg-rose-950/75 border-2 border-rose-400/80 rounded-2xl p-4';
+      feedbackIcon.textContent = '❌';
+      feedbackTitle.className = 'font-display font-extrabold text-rose-300 text-sm sm:text-base tracking-wide';
+      feedbackTitle.textContent = isFatal
+        ? 'INCORRECT — 5TH STRIKE! SUIT INTEGRITY DEPLETED (0%)'
+        : `INCORRECT — SUIT INTEGRITY -20% (${integrityPct}% MAX HP • ${remainingLives} ${remainingLives === 1 ? 'LIFE' : 'LIVES'} LEFT)`;
+      diagnosisText.className = 'text-xs sm:text-sm text-rose-100 mt-1';
+      diagnosisText.innerHTML = option.reason;
+      stepsContainer.innerHTML = activeProblem.steps.map(s => `<div class="flex flex-wrap items-center gap-1">${s}</div>`).join('');
+      continueBtn.className = 'px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-display font-extrabold text-sm shadow-lg transition cursor-pointer';
+      continueBtn.textContent = isFatal ? 'View Results (Enter) ▶' : 'Continue Battle (Enter) ▶';
+      feedbackBox.classList.remove('hidden');
+    }
+  }
+
+  function resumeAfterBreach() {
+    if (document.getElementById('mathFeedbackBox').classList.contains('hidden')) return;
+    document.getElementById('mathModal').classList.add('hidden');
+
+    const p = STATE.player;
+    if (!lastAnswerCorrect && p.deaths >= p.maxDeaths) {
+      endGame(false);
+      return;
+    }
+
+    if (lastAnswerCorrect) {
+      STATE.shockwaves.push({ x: p.x, y: p.y, radius: 15, maxRadius: 260, color: '#10b981', alpha: 1.0 });
+      STATE.enemies.forEach(e => { e.stunTimer = Math.max(e.stunTimer, 2.5); });
+      spawnFloatingText(p.x, p.y - 38, `X-METHOD VERIFIED! +${lastBonusGold} ⬡ & X-STUN!`, '#34d399', 16);
+    } else {
+      STATE.cameraShake = 12;
+      spawnFloatingText(p.x, p.y - 38, `WRONG ANSWER: -20% MAX HP (${p.maxDeaths - p.deaths} LIVES LEFT)`, '#fb7185', 16);
+    }
+
+    if (breachIsEndOfWave) {
+      completeWaveAndOpenShop();
+    } else {
+      STATE.mode = 'PLAYING';
+    }
+  }
+
+  document.getElementById('btnContinueBreach').addEventListener('click', resumeAfterBreach);
+
+  // =========================================================================
+  // 15. LEVEL-UP DRAFT & BETWEEN-WAVE ARMORY SHOP (WITH T4 GOLD EVOLUTION)
+  // =========================================================================
+  function openUpgradeModal(isShop = false) {
+    STATE.mode = isShop ? 'SHOP' : 'UPGRADE';
+    const modal = document.getElementById('upgradeModal');
+    document.getElementById('upgradeTag').textContent = isShop
+      ? `WAVE ${STATE.wave} CLEARED — ARMORY`
+      : `LEVEL ${STATE.player.level} REACHED!`;
+    document.getElementById('upgradeTitle').textContent = isShop
+      ? 'ARMORY & GOLD WEAPON EVOLUTION'
+      : 'CHOOSE FREE TACTICAL UPGRADE';
+    document.getElementById('shopGoldDisplay').textContent = STATE.player.gold;
+    document.getElementById('rerollCostText').textContent = STATE.rerollCost;
+
+    const footer = document.getElementById('shopFooter');
+    if (isShop) footer.classList.remove('hidden');
+    else footer.classList.add('hidden');
+
+    populateUpgradeCards(isShop);
+    modal.classList.remove('hidden');
+  }
+
+  function populateUpgradeCards(isShop) {
+    const grid = document.getElementById('upgradeCardsGrid');
+    grid.innerHTML = '';
+
+    const offers = [];
+    const shuffledStats = [...STAT_UPGRADES].sort(() => Math.random() - 0.5);
+    const shuffledWeapons = [...WEAPON_KEYS].sort(() => Math.random() - 0.5);
+
+    const ownedIds = [...new Set(STATE.weapons.filter(w => w.tier < 4).map(w => w.id))];
+    const weaponOffer1 = ownedIds.length > 0 && Math.random() < 0.72
+      ? ownedIds[Math.floor(Math.random() * ownedIds.length)]
+      : shuffledWeapons[0];
+    const weaponOffer2 = shuffledWeapons.find(id => id !== weaponOffer1) || shuffledWeapons[1];
+
+    offers.push({ kind: 'stat', data: shuffledStats[0], cost: isShop ? (22 + STATE.wave * 3) : 0 });
+    offers.push({ kind: 'weapon', data: WEAPON_CATALOG[weaponOffer1], cost: isShop ? (26 + STATE.wave * 4) : 0 });
+    offers.push({ kind: 'weapon', data: WEAPON_CATALOG[weaponOffer2], cost: isShop ? (26 + STATE.wave * 4) : 0 });
+    offers.push({ kind: 'stat', data: shuffledStats[1], cost: isShop ? (24 + STATE.wave * 3) : 0 });
+
+    offers.forEach(offer => {
+      const canAfford = !isShop || STATE.player.gold >= offer.cost;
+      const card = document.createElement('div');
+      card.className = `rounded-2xl border-2 p-4 flex flex-col justify-between transition ${
+        canAfford
+          ? 'bg-[#06100d] border-emerald-500/40 hover:border-amber-400 hover:-translate-y-1 cursor-pointer shadow-lg'
+          : 'bg-[#06100d]/50 border-slate-700/50 opacity-60'
+      }`;
+
+      if (offer.kind === 'stat') {
+        const s = offer.data;
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-2xl">${s.icon}</span>
+              <span class="text-[10px] font-mono-code font-bold uppercase px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">TACTICAL</span>
+            </div>
+            <h3 class="font-display font-bold text-base text-white">${s.name}</h3>
+            <p class="text-xs text-emerald-100/80 mt-1.5 leading-relaxed">${s.desc}</p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-emerald-500/20 flex items-center justify-between">
+            <span class="font-mono-code font-extrabold text-xs ${isShop ? 'text-amber-300' : 'text-emerald-300'}">
+              ${isShop ? `⬡ ${offer.cost} SCRAP` : 'FREE DRAFT'}
+            </span>
+            <span class="text-xs font-display font-bold text-amber-300">SELECT ▶</span>
+          </div>
+        `;
+      } else {
+        const w = offer.data;
+        const existing = STATE.weapons.filter(ow => ow.id === w.id);
+        let badge = 'T1 EMERALD';
+        let badgeStyle = 'bg-emerald-500/20 text-emerald-300';
+        if (existing.some(ow => ow.tier === 3)) {
+          badge = '★ FORGE T4 GOLD!';
+          badgeStyle = 'bg-amber-500/30 text-amber-300 border border-amber-400';
+        } else if (existing.some(ow => ow.tier === 2)) {
+          badge = 'MERGE → T3 AMETHYST';
+          badgeStyle = 'bg-purple-500/25 text-purple-300';
+        } else if (existing.some(ow => ow.tier === 1)) {
+          badge = 'MERGE → T2 COBALT';
+          badgeStyle = 'bg-sky-500/25 text-sky-300';
+        }
+
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between mb-2 gap-1">
+              <span class="text-2xl">${w.icon}</span>
+              <span class="text-[10px] font-mono-code font-bold uppercase px-2 py-0.5 rounded ${badgeStyle}">${badge}</span>
+            </div>
+            <h3 class="font-display font-bold text-base text-white">${w.name}</h3>
+            <p class="text-xs text-emerald-100/80 mt-1.5 leading-relaxed">${w.desc}</p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-emerald-500/20 flex items-center justify-between">
+            <span class="font-mono-code font-extrabold text-xs ${isShop ? 'text-amber-300' : 'text-emerald-300'}">
+              ${isShop ? `⬡ ${offer.cost} SCRAP` : 'FREE DRAFT'}
+            </span>
+            <span class="text-xs font-display font-bold text-amber-300">EQUIP ▶</span>
+          </div>
+        `;
+      }
+
+      if (canAfford) {
+        card.addEventListener('click', () => {
+          if (isShop) {
+            if (STATE.player.gold < offer.cost) return;
+            STATE.player.gold -= offer.cost;
+            document.getElementById('shopGoldDisplay').textContent = STATE.player.gold;
+          }
+          if (offer.kind === 'stat') {
+            offer.data.apply(STATE.player);
+            recalculateMaxHp(STATE.player);
+          } else {
+            addOrMergeWeapon(offer.data.id);
+          }
+          sfx.play('levelup');
+          updateHUD();
+
+          if (!isShop) {
+            document.getElementById('upgradeModal').classList.add('hidden');
+            STATE.mode = 'PLAYING';
+          } else {
+            card.classList.add('opacity-40', 'pointer-events-none');
+            card.innerHTML = `<div class="h-full flex items-center justify-center font-display font-bold text-emerald-300">✓ ACQUIRED</div>`;
+          }
+        });
+      }
+
+      grid.appendChild(card);
+    });
+  }
+
+  document.getElementById('btnRerollShop').addEventListener('click', () => {
+    if (STATE.player.gold < STATE.rerollCost) return;
+    STATE.player.gold -= STATE.rerollCost;
+    STATE.rerollCost += 8;
+    document.getElementById('shopGoldDisplay').textContent = STATE.player.gold;
+    document.getElementById('rerollCostText').textContent = STATE.rerollCost;
+    sfx.play('xp');
+    populateUpgradeCards(STATE.mode === 'SHOP');
+  });
+
+  function completeWaveAndOpenShop() {
+    if (STATE.wave >= STATE.maxWaves) {
+      endGame(true);
+      return;
+    }
+    STATE.rerollCost = 15;
+    openUpgradeModal(true);
+  }
+
+  document.getElementById('btnNextWave').addEventListener('click', () => {
+    document.getElementById('upgradeModal').classList.add('hidden');
+    STATE.mode = 'PLAYING';
+    startWave(STATE.wave + 1);
+  });
+
+  // =========================================================================
+  // 16. HUD UPDATES & END-OF-RUN SUMMARY
+  // =========================================================================
+  function updateHUDWeapons() {
+    const container = document.getElementById('hudWeapons');
+    container.innerHTML = '';
+    for (let i = 0; i < 6; i++) {
+      const w = STATE.weapons[i];
+      const slot = document.createElement('div');
+      if (w) {
+        const meta = WEAPON_CATALOG[w.id];
+        const tStyle = TIER_STYLES[w.tier] || TIER_STYLES[1];
+        slot.className = `w-10 h-10 rounded-xl border-2 ${tStyle.borderClass} flex flex-col items-center justify-center relative`;
+        slot.title = `${meta.name} — ${tStyle.label}`;
+        slot.innerHTML = `
+          <span class="text-sm leading-none">${meta.icon}</span>
+          <span class="text-[9px] font-mono-code font-extrabold leading-none mt-0.5">${w.tier === 4 ? '★T4' : 'T' + w.tier}</span>
+        `;
+      } else {
+        slot.className = 'w-10 h-10 rounded-xl border border-emerald-500/15 bg-[#06100d]/60 flex items-center justify-center text-emerald-700 text-xs';
+        slot.textContent = '+';
+      }
+      container.appendChild(slot);
+    }
+  }
+
+  function updateHUD() {
+    const p = STATE.player;
+    if (!p) return;
+    document.getElementById('hudHeroName').textContent = p.hero.name;
+    document.getElementById('hudLevelBadge').textContent = `LVL ${p.level}`;
+    document.getElementById('hudHpBar').style.width = `${Math.max(0, (p.hp / p.maxHp) * 100)}%`;
+    document.getElementById('hudHpText').textContent = `${Math.ceil(p.hp)} / ${p.maxHp}`;
+    document.getElementById('hudXpBar').style.width = `${Math.min(100, (p.xp / p.xpToNext) * 100)}%`;
+
+    // 5-Life Suit Integrity Pips
+    const livesEl = document.getElementById('hudLivesPips');
+    livesEl.innerHTML = '';
+    const livesRemaining = Math.max(0, p.maxDeaths - p.deaths);
+    for (let i = 0; i < p.maxDeaths; i++) {
+      const heart = document.createElement('span');
+      heart.className = `w-2 h-2.5 rounded-sm ${i < livesRemaining ? 'bg-emerald-400' : 'bg-rose-950 border border-rose-700/60'}`;
+      livesEl.appendChild(heart);
+    }
+
+    document.getElementById('hudWave').innerHTML = `${STATE.wave} <span class="text-xs text-emerald-400">/ ${STATE.maxWaves}</span>`;
+    document.getElementById('hudIntensityTag').textContent = `• ${getIntensityCfg().short}`;
+    const mins = Math.floor(Math.max(0, STATE.waveTimer) / 60);
+    const secs = Math.floor(Math.max(0, STATE.waveTimer) % 60);
+    document.getElementById('hudTimer').textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+    const nextB = STATE.breachTriggers.find(t => t < STATE.waveTimer && !STATE.triggeredBreaches.has(t));
+    if (nextB !== undefined) {
+      const bm = Math.floor(nextB / 60);
+      const bs = nextB % 60;
+      document.getElementById('hudNextBreach').textContent = `${String(bm).padStart(2, '0')}:${String(bs).padStart(2, '0')}`;
+    } else {
+      document.getElementById('hudNextBreach').textContent = '00:00';
+    }
+
+    const acc = STATE.stats.mathAttempted === 0
+      ? 100
+      : Math.round((STATE.stats.mathCorrect / STATE.stats.mathAttempted) * 100);
+    document.getElementById('hudAccuracy').textContent = `${acc}%`;
+    document.getElementById('hudGold').textContent = p.gold;
+
+    const pips = document.getElementById('hudDashPips');
+    pips.innerHTML = '';
+    for (let i = 0; i < p.maxDashes; i++) {
+      const pip = document.createElement('span');
+      pip.className = `w-3.5 h-2 rounded-sm transition ${i < p.dashCharges ? 'bg-cyan-400 shadow-sm shadow-cyan-300' : 'bg-slate-800 border border-cyan-900'}`;
+      pips.appendChild(pip);
+    }
+
+    document.getElementById('ultCooldownOverlay').style.height = `${p.ultCharge}%`;
+    document.getElementById('ultStatusText').textContent = p.ultCharge >= 100 ? 'READY [E]' : `${Math.floor(p.ultCharge)}%`;
+
+    const chips = document.getElementById('hudStatChips');
+    chips.innerHTML = `
+      <span>DMG ${Math.round(p.damageMult * 100)}%</span>
+      <span class="text-emerald-600">|</span>
+      <span>SPD ${Math.round(p.speedMult * 100)}%</span>
+      <span class="text-emerald-600">|</span>
+      <span>RATE ${Math.round(p.fireRateMult * 100)}%</span>
+      <span class="text-emerald-600">|</span>
+      <span>INTEGRITY ${Math.max(0, 100 - p.deaths * 20)}%</span>
+    `;
+
+    if (STATE.wave === 10) {
+      const tokar = STATE.enemies.find(e => e.bossLabel === 'TOKAR');
+      const baker = STATE.enemies.find(e => e.bossLabel === 'BAKER');
+      const tPct = tokar ? Math.max(0, (tokar.hp / tokar.maxHp) * 100) : 0;
+      const bPct = baker ? Math.max(0, (baker.hp / baker.maxHp) * 100) : 0;
+      document.getElementById('bossTokarHpBar').style.width = `${tPct}%`;
+      document.getElementById('bossTokarHpText').textContent = `${Math.ceil(tPct)}%`;
+      document.getElementById('bossBakerHpBar').style.width = `${bPct}%`;
+      document.getElementById('bossBakerHpText').textContent = `${Math.ceil(bPct)}%`;
+    }
+  }
+
+  function endGame(victory) {
+    STATE.mode = 'END';
+    document.getElementById('endIcon').textContent = victory ? '🏆' : '💀';
+    document.getElementById('endTitle').textContent = victory ? 'ARENA CONQUERED!' : 'SUIT INTEGRITY DEPLETED';
+    document.getElementById('endSubtitle').textContent = victory
+      ? 'Legendary! You defeated all 10 Alien Species and Mega-Aliens TOKAR & BAKER!'
+      : 'Your suit integrity hit 0% after 5 failures/deaths. Re-deploy and sharpen your X-Method skills!';
+    document.getElementById('endWave').textContent = `${STATE.wave} / ${STATE.maxWaves}`;
+    document.getElementById('endKills').textContent = STATE.stats.kills;
+    document.getElementById('endMathScore').textContent = `${STATE.stats.mathCorrect} / ${STATE.stats.mathAttempted}`;
+    document.getElementById('endHero').textContent = STATE.player.hero.name;
+    document.getElementById('endModal').classList.remove('hidden');
+  }
+
+  // =========================================================================
+  // 17. MAIN SIMULATION STEP
+  // =========================================================================
+  function update(dt) {
+    if (STATE.mode !== 'PLAYING') return;
+
+    STATE.time += dt;
+    STATE.waveTimer -= dt;
+    if (STATE.cameraShake > 0) STATE.cameraShake = Math.max(0, STATE.cameraShake - dt * 28);
+
+    const p = STATE.player;
+
+    for (const mark of STATE.breachTriggers) {
+      if (STATE.waveTimer <= mark && !STATE.triggeredBreaches.has(mark)) {
+        STATE.triggeredBreaches.add(mark);
+        const mins = Math.floor(mark / 60);
+        const secs = mark % 60;
+        openQuadraticBreach(`TIMED BREACH (${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')})`, false);
+        return;
+      }
+    }
+
+    if (STATE.waveTimer <= 0) {
+      STATE.waveTimer = 0;
+      updateHUD();
+      openQuadraticBreach(`WAVE ${STATE.wave} EXTRACTION BREACH`, true);
+      return;
+    }
+
+    if (p.invulnTimer > 0) p.invulnTimer -= dt;
+    if (p.overclockTimer > 0) p.overclockTimer -= dt;
+    if (p.recoil > 0) p.recoil = Math.max(0, p.recoil - dt * 26);
+    p.orbitAngle += dt * 3.5;
+
+    if (p.regen > 0 && p.hp < p.maxHp) {
+      p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
+    }
+
+    if (p.dashCharges < p.maxDashes) {
+      p.dashRechargeTimer += dt;
+      if (p.dashRechargeTimer >= p.dashCooldownBase) {
+        p.dashRechargeTimer = 0;
+        p.dashCharges += 1;
+      }
+    }
+
+    let moveX = 0, moveY = 0;
+    p.isMoving = false;
+    if (p.dashActiveTimer > 0) {
+      p.dashActiveTimer -= dt;
+      p.isMoving = true;
+      const dashSpd = 800;
+      p.x += p.dashDirX * dashSpd * dt;
+      p.y += p.dashDirY * dashSpd * dt;
+      STATE.particles.push({
+        x: p.x, y: p.y, vx: 0, vy: 0,
+        life: 0.18, maxLife: 0.18, size: 13, color: '#38bdf8'
+      });
+    } else {
+      if (STATE.keys['KeyW'] || STATE.keys['ArrowUp']) moveY -= 1;
+      if (STATE.keys['KeyS'] || STATE.keys['ArrowDown']) moveY += 1;
+      if (STATE.keys['KeyA'] || STATE.keys['ArrowLeft']) moveX -= 1;
+      if (STATE.keys['KeyD'] || STATE.keys['ArrowRight']) moveX += 1;
+      if (STATE.joystick.active) {
+        moveX = STATE.joystick.dx;
+        moveY = STATE.joystick.dy;
+      }
+      const len = Math.hypot(moveX, moveY);
+      if (len > 0.01) {
+        p.isMoving = true;
+        const nx = moveX / len;
+        const ny = moveY / len;
+        const spd = p.baseSpeed * p.speedMult;
+        p.x += nx * spd * dt;
+        p.y += ny * spd * dt;
+        p.walkCycle += dt * 14;
+      }
+    }
+
+    const margin = 28;
+    p.x = Math.max(margin, Math.min(STATE.width - margin, p.x));
+    p.y = Math.max(margin + 56, Math.min(STATE.height - margin, p.y));
+
+    let nearestEnemy = null;
+    let nearestDist = Infinity;
+    for (const e of STATE.enemies) {
+      const d = Math.hypot(e.x - p.x, e.y - p.y);
+      if (d < nearestDist) {
+        nearestDist = d;
+        nearestEnemy = e;
+      }
+    }
+
+    if (STATE.autoAim && nearestEnemy) {
+      p.facingAngle = Math.atan2(nearestEnemy.y - p.y, nearestEnemy.x - p.x);
+    } else {
+      p.facingAngle = Math.atan2(STATE.mouse.y - p.y, STATE.mouse.x - p.x);
+    }
+
+    const effectiveRateMult = p.fireRateMult * (p.overclockTimer > 0 ? 2.5 : 1.0);
+    for (const wSlot of STATE.weapons) {
+      const meta = WEAPON_CATALOG[wSlot.id];
+      const tStyle = TIER_STYLES[wSlot.tier] || TIER_STYLES[1];
+      wSlot.cooldown -= dt * effectiveRateMult;
+      if (wSlot.cooldown <= 0 && (STATE.enemies.length > 0 || !STATE.autoAim)) {
+        wSlot.cooldown = meta.rate * tStyle.rateMult;
+        p.recoil = 6.5;
+        sfx.play('shoot');
+
+        const totalCount = meta.count + p.bonusProjectiles + tStyle.extraCount;
+        const baseAngle = p.facingAngle;
+
+        for (let i = 0; i < totalCount; i++) {
+          const offsetIndex = i - (totalCount - 1) / 2;
+          const ang = baseAngle + offsetIndex * (meta.spread || 0.09) + (Math.random() - 0.5) * 0.03;
+          const isCrit = Math.random() < p.critChance || wSlot.tier === 4;
+          const dmg = meta.dmg * tStyle.dmgMult * p.damageMult * (isCrit ? p.critMult : 1.0);
+          const spd = meta.speed * p.projSpeedMult * (wSlot.tier === 4 ? 1.25 : 1.0);
+
+          STATE.projectiles.push({
+            x: p.x + Math.cos(ang) * 24,
+            y: p.y + Math.sin(ang) * 24,
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd,
+            radius: wSlot.tier === 4 ? 8.5 : (4.5 + wSlot.tier * 0.8),
+            dmg,
+            pierce: meta.pierce + p.bonusPierce + tStyle.extraPierce,
+            life: 1.55,
+            color: tStyle.color,
+            isGold: wSlot.tier === 4,
+            crit: isCrit,
+            chill: !!meta.chill,
+            homing: !!meta.homing || wSlot.tier === 4,
+            bounce: !!meta.bounce,
+            explode: Math.max(meta.explode || 0, tStyle.goldExplode) * p.areaMult,
+            hitSet: new Set()
+          });
+        }
+      }
+    }
+
+    if (p.orbitShields > 0) {
+      const orbitR = 58;
+      for (let i = 0; i < p.orbitShields; i++) {
+        const a = p.orbitAngle + (Math.PI * 2 * i) / p.orbitShields;
+        const sx = p.x + Math.cos(a) * orbitR;
+        const sy = p.y + Math.sin(a) * orbitR;
+        for (const e of STATE.enemies) {
+          if (Math.hypot(e.x - sx, e.y - sy) < e.radius + 14) {
+            damageEnemy(e, 45 * p.damageMult * dt * 5, false);
+          }
+        }
+      }
+    }
+
+    const icfg = getIntensityCfg();
+    const targetActiveEnemies = Math.max(10, Math.round(Math.min(68, 18 + STATE.wave * 4) * icfg.countMult));
+    const spawnInterval = Math.max(0.10, (0.72 - STATE.wave * 0.045) / icfg.rateMult);
+    STATE.spawnAccumulator += dt;
+    if (STATE.spawnAccumulator >= spawnInterval && STATE.enemies.length < targetActiveEnemies) {
+      STATE.spawnAccumulator = 0;
+      spawnAlienByLevel(pickAlienLevelForWave(STATE.wave));
+    }
+
+    for (let i = STATE.projectiles.length - 1; i >= 0; i--) {
+      const proj = STATE.projectiles[i];
+      proj.life -= dt;
+      if (proj.life <= 0) {
+        STATE.projectiles.splice(i, 1);
+        continue;
+      }
+
+      if (proj.homing && nearestEnemy) {
+        const desired = Math.atan2(nearestEnemy.y - proj.y, nearestEnemy.x - proj.x);
+        const cur = Math.atan2(proj.vy, proj.vx);
+        const spd = Math.hypot(proj.vx, proj.vy);
+        const diff = Math.atan2(Math.sin(desired - cur), Math.cos(desired - cur));
+        const next = cur + diff * Math.min(1, dt * (proj.isGold ? 9 : 6.5));
+        proj.vx = Math.cos(next) * spd;
+        proj.vy = Math.sin(next) * spd;
+      }
+
+      proj.x += proj.vx * dt;
+      proj.y += proj.vy * dt;
+
+      if (proj.isGold && Math.random() < 0.65) {
+        STATE.particles.push({
+          x: proj.x, y: proj.y, vx: (Math.random() - 0.5) * 40, vy: (Math.random() - 0.5) * 40,
+          life: 0.2, maxLife: 0.2, size: 3.5, color: '#fbbf24'
+        });
+      }
+
+      if (proj.bounce) {
+        if (proj.x < 10 || proj.x > STATE.width - 10) proj.vx *= -1;
+        if (proj.y < 60 || proj.y > STATE.height - 10) proj.vy *= -1;
+      }
+
+      for (const e of STATE.enemies) {
+        if (e.dead || (proj.hitSet && proj.hitSet.has(e))) continue;
+        if (Math.hypot(e.x - proj.x, e.y - proj.y) <= e.radius + proj.radius) {
+          if (proj.hitSet) proj.hitSet.add(e);
+          damageEnemy(e, proj.dmg, proj.crit);
+          if (proj.chill) e.chillTimer = 2.6;
+          sfx.play('hit');
+
+          if (proj.explode > 0) {
+            STATE.shockwaves.push({ x: proj.x, y: proj.y, radius: 8, maxRadius: proj.explode, color: proj.color, alpha: 0.85 });
+            for (const other of STATE.enemies) {
+              if (!other.dead && other !== e && Math.hypot(other.x - proj.x, other.y - proj.y) <= proj.explode + other.radius) {
+                damageEnemy(other, proj.dmg * 0.65, false);
+              }
+            }
+          }
+
+          proj.pierce -= 1;
+          if (proj.pierce <= 0) {
+            proj.life = 0;
+            break;
+          }
+        }
+      }
+    }
+
+    for (let i = STATE.enemies.length - 1; i >= 0; i--) {
+      const e = STATE.enemies[i];
+      if (e.dead) {
+        STATE.enemies.splice(i, 1);
+        continue;
+      }
+      if (e.hitFlash > 0) e.hitFlash -= dt;
+      if (e.stunTimer > 0) {
+        e.stunTimer -= dt;
+        continue;
+      }
+      if (e.chillTimer > 0) e.chillTimer -= dt;
+
+      const angleToPlayer = Math.atan2(p.y - e.y, p.x - e.x);
+      const speedMult = e.chillTimer > 0 ? 0.55 : 1.0;
+      const moveSpd = e.speed * speedMult;
+
+      e.x += Math.cos(angleToPlayer) * moveSpd * dt;
+      e.y += Math.sin(angleToPlayer) * moveSpd * dt;
+      e.legPhase += dt * (moveSpd * 0.085);
+
+      if (e.shootCd < 100) {
+        e.shootTimer -= dt;
+        if (e.shootTimer <= 0) {
+          e.shootTimer = e.shootCd;
+          const maxSwarmCap = Math.round(65 * getIntensityCfg().countMult);
+          if (e.spawnsMites && STATE.enemies.length < maxSwarmCap) {
+            spawnAlienByLevel(1, { x: e.x + 25, y: e.y + 20 });
+            spawnAlienByLevel(1, { x: e.x - 25, y: e.y - 20 });
+          } else {
+            const burst = e.isBoss ? 7 : (e.alienLevel >= 9 ? 3 : 1);
+            const projSpd = (e.isBoss ? 360 : 285) * getIntensityCfg().projSpeedMult;
+            for (let b = 0; b < burst; b++) {
+              const spread = burst > 1 ? (b - (burst - 1) / 2) * 0.22 : 0;
+              const shotAng = angleToPlayer + spread;
+              STATE.enemyProjectiles.push({
+                x: e.x + Math.cos(shotAng) * e.radius,
+                y: e.y + Math.sin(shotAng) * e.radius,
+                vx: Math.cos(shotAng) * projSpd,
+                vy: Math.sin(shotAng) * projSpd,
+                radius: e.isBoss ? 9 : 6,
+                dmg: e.dmg,
+                color: e.glow,
+                life: 3.4
+              });
+            }
+          }
+        }
+      }
+
+      if (Math.hypot(e.x - p.x, e.y - p.y) < e.radius + p.radius - 3) {
+        handlePlayerDamage(e.dmg);
+        if (STATE.mode === 'END') return;
+      }
+    }
+
+    if (STATE.wave === 10) {
+      const bossesAlive = STATE.enemies.some(e => e.isBoss);
+      if (!bossesAlive) {
+        endGame(true);
+        return;
+      }
+    }
+
+    for (let i = STATE.enemyProjectiles.length - 1; i >= 0; i--) {
+      const ep = STATE.enemyProjectiles[i];
+      ep.life -= dt;
+      ep.x += ep.vx * dt;
+      ep.y += ep.vy * dt;
+      if (ep.life <= 0) {
+        STATE.enemyProjectiles.splice(i, 1);
+        continue;
+      }
+      if (Math.hypot(ep.x - p.x, ep.y - p.y) < ep.radius + p.radius - 3) {
+        handlePlayerDamage(ep.dmg);
+        STATE.enemyProjectiles.splice(i, 1);
+        if (STATE.mode === 'END') return;
+      }
+    }
+
+    for (let i = STATE.gems.length - 1; i >= 0; i--) {
+      const g = STATE.gems[i];
+      const dist = Math.hypot(p.x - g.x, p.y - g.y);
+      if (dist < p.magnetRadius || g.magnetized) {
+        const ang = Math.atan2(p.y - g.y, p.x - g.x);
+        g.x += Math.cos(ang) * 580 * dt;
+        g.y += Math.sin(ang) * 580 * dt;
+      }
+      if (dist < p.radius + 14) {
+        p.xp += g.xp;
+        p.gold += g.gold;
+        sfx.play('xp');
+        STATE.gems.splice(i, 1);
+
+        if (p.xp >= p.xpToNext) {
+          p.xp -= p.xpToNext;
+          p.level += 1;
+          p.xpToNext = Math.round(p.xpToNext * 1.24 + 18);
+          sfx.play('levelup');
+          updateHUD();
+          openUpgradeModal(false);
+          return;
+        }
+      }
+    }
+
+    for (let i = STATE.crates.length - 1; i >= 0; i--) {
+      const c = STATE.crates[i];
+      c.pulse += dt * 4;
+      if (Math.hypot(p.x - c.x, p.y - c.y) < p.radius + 22) {
+        STATE.crates.splice(i, 1);
+        openQuadraticBreach('x² SUPPLY CACHE BREACH', false);
+        return;
+      }
+    }
+
+    for (let i = STATE.particles.length - 1; i >= 0; i--) {
+      const pt = STATE.particles[i];
+      pt.life -= dt;
+      pt.x += pt.vx * dt;
+      pt.y += pt.vy * dt;
+      if (pt.life <= 0) STATE.particles.splice(i, 1);
+    }
+    for (let i = STATE.shockwaves.length - 1; i >= 0; i--) {
+      const sw = STATE.shockwaves[i];
+      sw.radius += (sw.maxRadius - sw.radius) * Math.min(1, dt * 11);
+      sw.alpha -= dt * 2.4;
+      if (sw.alpha <= 0) STATE.shockwaves.splice(i, 1);
+    }
+    for (let i = STATE.floatingTexts.length - 1; i >= 0; i--) {
+      const ft = STATE.floatingTexts[i];
+      ft.life -= dt;
+      ft.y -= 34 * dt;
+      if (ft.life <= 0) STATE.floatingTexts.splice(i, 1);
+    }
+
+    updateHUD();
+  }
+
+  // =========================================================================
+  // 18. 2.5D ILLUSTRATED RENDERER (FULL-BODY OPERATIVES + 10 ALIEN SPECIES)
+  // =========================================================================
+  function drawArenaFloor() {
+    ctx.fillStyle = '#06100d';
+    ctx.fillRect(0, 0, STATE.width, STATE.height);
+
+    const cx = STATE.width / 2;
+    const cy = STATE.height / 2;
+    const maxR = Math.max(STATE.width, STATE.height) * 0.68;
+    const bgGrad = ctx.createRadialGradient(cx, cy, 40, cx, cy, maxR);
+    bgGrad.addColorStop(0, '#0f2a22');
+    bgGrad.addColorStop(0.55, '#091813');
+    bgGrad.addColorStop(1, '#040a08');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, STATE.width, STATE.height);
+
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.065)';
+    ctx.lineWidth = 1;
+    const step = 64;
+    ctx.beginPath();
+    for (let x = 0; x <= STATE.width; x += step) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, STATE.height);
+    }
+    for (let y = 0; y <= STATE.height; y += step) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(STATE.width, y);
+    }
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(cx, cy + 16);
+    const xSize = Math.min(STATE.width, STATE.height) * 0.22;
+
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.15)';
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-xSize, -xSize);
+    ctx.lineTo(xSize, xSize);
+    ctx.moveTo(xSize, -xSize);
+    ctx.lineTo(-xSize, xSize);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(251, 191, 36, 0.09)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, xSize * 1.25, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.font = '800 18px "JetBrains Mono", monospace';
+    ctx.fillStyle = 'rgba(251, 191, 36, 0.20)';
+    ctx.fillText('A · C', 0, -xSize * 0.58);
+
+    ctx.fillStyle = 'rgba(52, 211, 153, 0.20)';
+    ctx.fillText('B', 0, xSize * 0.72);
+
+    ctx.font = '700 15px "JetBrains Mono", monospace';
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.18)';
+    ctx.fillText('_____', -xSize * 0.78, -6);
+    ctx.fillText('a', -xSize * 0.78, 16);
+    ctx.fillText('_____', xSize * 0.78, -6);
+    ctx.fillText('a', xSize * 0.78, 16);
+    ctx.restore();
+  }
+
+  function drawDistinctAlien(e) {
+    ctx.save();
+    ctx.translate(e.x, e.y);
+
+    const r = e.radius;
+    const angle = Math.atan2(STATE.player.y - e.y, STATE.player.x - e.x);
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    ctx.beginPath();
+    ctx.ellipse(0, r * 0.58, r * 1.18, r * 0.55, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.save();
+    ctx.rotate(angle);
+
+    const arch = e.archetype;
+    if (arch === 'leviathan') {
+      for (let s = 3; s >= 1; s--) {
+        const segX = -s * r * 0.58;
+        const segY = Math.sin(e.legPhase * 0.8 + s * 1.1) * (r * 0.35);
+        const segR = r * (0.85 - s * 0.14);
+        ctx.fillStyle = e.hitFlash > 0 ? '#ffffff' : (s % 2 === 0 ? e.color1 : e.color2);
+        ctx.beginPath();
+        ctx.arc(segX, segY, segR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = e.glow;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    } else if (arch === 'squid' || arch === 'hivemother') {
+      ctx.strokeStyle = e.hitFlash > 0 ? '#ffffff' : e.glow;
+      ctx.lineWidth = arch === 'hivemother' ? 4 : 2.6;
+      for (let t = -2; t <= 2; t++) {
+        const wave = Math.sin(e.legPhase + t) * (r * 0.35);
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.4, t * r * 0.25);
+        ctx.quadraticCurveTo(-r * 1.2, t * r * 0.45 + wave, -r * 1.75, t * r * 0.3 - wave);
+        ctx.stroke();
+      }
+    } else if (arch === 'hydra') {
+      for (let h = -1; h <= 1; h++) {
+        const sway = Math.sin(e.legPhase + h * 1.4) * 5;
+        ctx.strokeStyle = e.hitFlash > 0 ? '#ffffff' : e.color1;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(r * 0.2, h * r * 0.35);
+        ctx.lineTo(r * 1.25, h * r * 0.62 + sway);
+        ctx.stroke();
+
+        ctx.fillStyle = e.glow;
+        ctx.beginPath();
+        ctx.arc(r * 1.3, h * r * 0.62 + sway, r * 0.24, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (arch === 'quadwalker' || arch === 'dreadnought' || arch === 'megaTokar' || arch === 'megaBaker') {
+      ctx.strokeStyle = e.hitFlash > 0 ? '#ffffff' : '#0f172a';
+      ctx.lineWidth = e.isBoss ? 7 : 4.5;
+      for (let i = 0; i < 4; i++) {
+        const off = (i - 1.5) * r * 0.48;
+        const swing = Math.sin(e.legPhase + i * 1.4) * (r * 0.32);
+        ctx.beginPath();
+        ctx.moveTo(off, -r * 0.5);
+        ctx.lineTo(off + swing, -r * 1.38);
+        ctx.moveTo(off, r * 0.5);
+        ctx.lineTo(off - swing, r * 1.38);
+        ctx.stroke();
+      }
+      ctx.fillStyle = e.glow;
+      ctx.fillRect(r * 0.2, -r * 1.05, r * 0.95, r * 0.28);
+      ctx.fillRect(r * 0.2, r * 0.77, r * 0.95, r * 0.28);
+    } else {
+      const pairs = arch === 'beetle' ? 3 : 2;
+      ctx.strokeStyle = e.hitFlash > 0 ? '#ffffff' : e.color2;
+      ctx.lineWidth = 3;
+      for (let i = 0; i < pairs; i++) {
+        const off = (i - (pairs - 1) / 2) * r * 0.55;
+        const swing = Math.sin(e.legPhase + i * 1.6) * (r * 0.38);
+        ctx.beginPath();
+        ctx.moveTo(off, -r * 0.4);
+        ctx.lineTo(off + swing, -r * 1.35);
+        ctx.moveTo(off, r * 0.4);
+        ctx.lineTo(off - swing, r * 1.35);
+        ctx.stroke();
+      }
+      if (arch === 'mantis') {
+        ctx.strokeStyle = e.glow;
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        ctx.moveTo(r * 0.3, -r * 0.5);
+        ctx.lineTo(r * 1.35, -r * 0.85);
+        ctx.lineTo(r * 1.65, -r * 0.25);
+        ctx.moveTo(r * 0.3, r * 0.5);
+        ctx.lineTo(r * 1.35, r * 0.85);
+        ctx.lineTo(r * 1.65, r * 0.25);
+        ctx.stroke();
+      }
+    }
+
+    const bodyGrad = ctx.createRadialGradient(-r * 0.2, -r * 0.25, r * 0.1, 0, 0, r * 1.15);
+    if (e.hitFlash > 0) {
+      bodyGrad.addColorStop(0, '#ffffff');
+      bodyGrad.addColorStop(1, '#fde047');
+    } else if (e.chillTimer > 0) {
+      bodyGrad.addColorStop(0, '#a5f3fc');
+      bodyGrad.addColorStop(1, '#0e7490');
+    } else {
+      bodyGrad.addColorStop(0, e.glow);
+      bodyGrad.addColorStop(0.45, e.color1);
+      bodyGrad.addColorStop(1, e.color2);
+    }
+
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    if (arch === 'beetle' || arch === 'dreadnought' || e.isBoss) {
+      ctx.ellipse(0, 0, r * 1.05, r * 0.88, 0, 0, Math.PI * 2);
+    } else if (arch === 'mantis' || arch === 'arachnid') {
+      ctx.ellipse(-r * 0.35, 0, r * 0.65, r * 0.52, 0, 0, Math.PI * 2);
+      ctx.ellipse(r * 0.3, 0, r * 0.62, r * 0.54, 0, 0, Math.PI * 2);
+    } else {
+      ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2);
+    }
+    ctx.fill();
+    ctx.strokeStyle = e.isBoss ? '#fbbf24' : 'rgba(255,255,255,0.38)';
+    ctx.lineWidth = e.isBoss ? 3 : 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.34)';
+    ctx.beginPath();
+    ctx.ellipse(0, -r * 0.32, r * 0.52, r * 0.16, -0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = e.isBoss ? 4 : 2;
+    ctx.beginPath();
+    ctx.moveTo(r * 0.72, -r * 0.28);
+    ctx.quadraticCurveTo(r * 1.35, -r * 0.28, r * 1.15, -r * 0.05);
+    ctx.moveTo(r * 0.72, r * 0.28);
+    ctx.quadraticCurveTo(r * 1.35, r * 0.28, r * 1.15, r * 0.05);
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(r * 0.62, -r * 0.22, e.isBoss ? 4.5 : 2.5, 0, Math.PI * 2);
+    ctx.arc(r * 0.62, r * 0.22, e.isBoss ? 4.5 : 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    if (e.isBoss) {
+      ctx.save();
+      ctx.font = '900 18px "Chakra Petch", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#020617';
+      ctx.fillText(e.bossLabel, 1.5, -r - 16);
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillText(e.bossLabel, 0, -r - 18);
+      ctx.restore();
+    } else {
+      if (e.hp < e.maxHp) {
+        const bw = r * 1.8;
+        ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+        ctx.fillRect(-bw / 2, -r - 12, bw, 4.5);
+        ctx.fillStyle = e.glow;
+        ctx.fillRect(-bw / 2, -r - 12, bw * Math.max(0, e.hp / e.maxHp), 4.5);
+      }
+      if (e.alienLevel >= 4) {
+        ctx.font = '800 9px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = e.glow;
+        ctx.fillText(`LV.${e.alienLevel}`, 0, -r - 15);
+      }
+    }
+
+    if (e.stunTimer > 0) {
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = '800 11px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('✕ STUNNED', 0, r + 16);
+    }
+
+    ctx.restore();
+  }
+
+  function drawFullBody25DOperative(p) {
+    const hero = p.hero;
+    const wMeta = WEAPON_CATALOG[hero.weapon];
+    const highestTier = STATE.weapons.reduce((m, w) => Math.max(m, w.tier), 1);
+    const activeWepColor = TIER_STYLES[highestTier].color;
+
+    ctx.save();
+    ctx.translate(p.x, p.y);
+
+    if (p.invulnTimer > 0 && Math.floor(p.invulnTimer * 20) % 2 === 0) {
+      ctx.globalAlpha = 0.55;
+    }
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.58)';
+    ctx.beginPath();
+    ctx.ellipse(0, 18, 22, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = highestTier === 4 ? '#fbbf24' : hero.primary;
+    ctx.lineWidth = highestTier === 4 ? 2.5 : 1.8;
+    ctx.beginPath();
+    ctx.ellipse(0, 17, 25, 11.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.save();
+    ctx.rotate(p.facingAngle);
+    ctx.fillStyle = hero.accent;
+    ctx.beginPath();
+    ctx.moveTo(33, 0);
+    ctx.lineTo(25, -5.5);
+    ctx.lineTo(27.5, 0);
+    ctx.lineTo(25, 5.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    const stride = p.isMoving ? Math.sin(p.walkCycle) * 7 : 0;
+    const drawLegAndBoot = (lx, ly) => {
+      ctx.fillStyle = hero.secondary;
+      ctx.strokeStyle = hero.primary;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.roundRect(lx - 4, ly - 10, 8, 12, 3);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = hero.accent;
+      ctx.beginPath();
+      ctx.arc(lx, ly - 4, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#0f172a';
+      ctx.strokeStyle = hero.accent;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.ellipse(lx, ly + 3, 5.8, 4.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    };
+    drawLegAndBoot(-6.5, 13 + stride * 0.55);
+    drawLegAndBoot(6.5, 13 - stride * 0.55);
+
+    if (hero.backGear === 'wings') {
+      const flap = Math.sin(STATE.time * 8) * 4;
+      ctx.fillStyle = hero.accent;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-8, -6);
+      ctx.lineTo(-32, -18 + flap);
+      ctx.lineTo(-23, 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(8, -6);
+      ctx.lineTo(32, -18 + flap);
+      ctx.lineTo(23, 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (hero.backGear === 'cape') {
+      const sway = Math.sin(STATE.time * 6) * 3;
+      ctx.fillStyle = hero.secondary;
+      ctx.strokeStyle = hero.accent;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-12, -5);
+      ctx.lineTo(12, -5);
+      ctx.lineTo(17 + sway, 17);
+      ctx.lineTo(-17 + sway, 17);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = hero.accent;
+      ctx.lineWidth = 1.4;
+      ctx.fillRect(-15, -11, 6, 15);
+      ctx.strokeRect(-15, -11, 6, 15);
+      ctx.fillRect(9, -11, 6, 15);
+      ctx.strokeRect(9, -11, 6, 15);
+    }
+
+    const torsoGrad = ctx.createRadialGradient(-4, -9, 2, 0, -2, 19);
+    torsoGrad.addColorStop(0, '#ffffff');
+    torsoGrad.addColorStop(0.35, hero.primary);
+    torsoGrad.addColorStop(1, hero.secondary);
+
+    ctx.fillStyle = torsoGrad;
+    ctx.beginPath();
+    ctx.roundRect(-13, -13, 26, 22, 8);
+    ctx.fill();
+    ctx.strokeStyle = hero.accent;
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(-12, 4, 24, 4.5);
+    ctx.fillStyle = hero.accent;
+    ctx.fillRect(-3, 3.5, 6, 5.5);
+
+    ctx.fillStyle = hero.primary;
+    ctx.beginPath();
+    ctx.arc(-14, -7, 5.5, 0, Math.PI * 2);
+    ctx.arc(14, -7, 5.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(0, -2);
+    ctx.rotate(p.facingAngle);
+    const rx = -p.recoil;
+
+    ctx.fillStyle = hero.secondary;
+    ctx.beginPath();
+    ctx.arc(11 + rx, -5, 3.4, 0, Math.PI * 2);
+    ctx.arc(17 + rx, 4, 3.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = activeWepColor;
+    ctx.fillStyle = '#0f172a';
+    ctx.lineWidth = 1.8;
+
+    if (wMeta.shape === 'katana' || wMeta.shape === 'glaive' || wMeta.shape === 'lance') {
+      ctx.fillStyle = activeWepColor;
+      ctx.beginPath();
+      ctx.moveTo(10 + rx, -2.5);
+      ctx.lineTo(35 + rx, 0);
+      ctx.lineTo(10 + rx, 2.5);
+      ctx.closePath();
+      ctx.fill();
+    } else if (wMeta.shape === 'bow') {
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      ctx.arc(15 + rx, 0, 13, -Math.PI * 0.45, Math.PI * 0.45);
+      ctx.stroke();
+    } else if (wMeta.shape === 'staff' || wMeta.shape === 'orb') {
+      ctx.beginPath();
+      ctx.moveTo(6 + rx, 0);
+      ctx.lineTo(28 + rx, 0);
+      ctx.stroke();
+      ctx.fillStyle = activeWepColor;
+      ctx.beginPath();
+      ctx.arc(30 + rx, 0, 5, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillRect(9 + rx, -4.5, 21, 9);
+      ctx.strokeRect(9 + rx, -4.5, 21, 9);
+      ctx.fillStyle = activeWepColor;
+      ctx.fillRect(24 + rx, -2.5, 6, 5);
+    }
+
+    if (p.recoil > 3.5) {
+      ctx.fillStyle = activeWepColor;
+      ctx.beginPath();
+      ctx.moveTo(31 + rx, 0);
+      ctx.lineTo(44 + rx, -7);
+      ctx.lineTo(39 + rx, 0);
+      ctx.lineTo(44 + rx, 7);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(0, -11);
+    ctx.fillStyle = hero.primary;
+    ctx.strokeStyle = hero.accent;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(0, 0, 9.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.rotate(p.facingAngle);
+    ctx.fillStyle = hero.visor;
+    ctx.beginPath();
+    ctx.ellipse(5.5, 0, 4.2, 6.8, 0, -Math.PI / 2, Math.PI / 2);
+    ctx.fill();
+
+    if (hero.headgear === 'crown' || hero.headgear === 'halo') {
+      ctx.strokeStyle = hero.accent;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 11.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.restore();
+
+    if (p.orbitShields > 0) {
+      const orbitR = 60;
+      for (let i = 0; i < p.orbitShields; i++) {
+        const a = p.orbitAngle + (Math.PI * 2 * i) / p.orbitShields;
+        const sx = p.x + Math.cos(a) * orbitR;
+        const sy = p.y + Math.sin(a) * orbitR;
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(a * 2);
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        ctx.moveTo(-8, -8);
+        ctx.lineTo(8, 8);
+        ctx.moveTo(8, -8);
+        ctx.lineTo(-8, 8);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+  }
+
+  function render() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    if (STATE.cameraShake > 0) {
+      const sx = (Math.random() - 0.5) * STATE.cameraShake;
+      const sy = (Math.random() - 0.5) * STATE.cameraShake;
+      ctx.translate(sx, sy);
+    }
+
+    drawArenaFloor();
+
+    if (STATE.mode === 'TITLE') return;
+
+    for (const c of STATE.crates) {
+      const scale = 1 + Math.sin(c.pulse) * 0.08;
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.scale(scale, scale);
+      ctx.fillStyle = 'rgba(251, 191, 36, 0.24)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 25, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#0a1814';
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 2.5;
+      ctx.fillRect(-15, -15, 30, 30);
+      ctx.strokeRect(-15, -15, 30, 30);
+
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = '800 13px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('x²', 0, 1);
+      ctx.restore();
+    }
+
+    for (const g of STATE.gems) {
+      ctx.save();
+      ctx.translate(g.x, g.y);
+      ctx.fillStyle = g.isBoss ? '#fbbf24' : '#34d399';
+      ctx.beginPath();
+      const r = g.isBoss ? 9 : 5.5;
+      ctx.moveTo(0, -r);
+      ctx.lineTo(r, 0);
+      ctx.lineTo(0, r);
+      ctx.lineTo(-r, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    for (const sw of STATE.shockwaves) {
+      ctx.save();
+      ctx.strokeStyle = sw.color;
+      ctx.globalAlpha = Math.max(0, sw.alpha);
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    for (const e of STATE.enemies) {
+      drawDistinctAlien(e);
+    }
+
+    if (STATE.player) {
+      drawFullBody25DOperative(STATE.player);
+    }
+
+    for (const proj of STATE.projectiles) {
+      ctx.save();
+      ctx.translate(proj.x, proj.y);
+      if (proj.isGold) {
+        ctx.shadowColor = '#fbbf24';
+        ctx.shadowBlur = 14;
+      }
+      ctx.fillStyle = proj.color;
+      ctx.beginPath();
+      ctx.arc(0, 0, proj.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, 0, proj.radius * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    for (const ep of STATE.enemyProjectiles) {
+      ctx.save();
+      ctx.translate(ep.x, ep.y);
+      ctx.fillStyle = ep.color;
+      ctx.beginPath();
+      ctx.arc(0, 0, ep.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    for (const pt of STATE.particles) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
+      ctx.fillStyle = pt.color;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    for (const ft of STATE.floatingTexts) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, ft.life / ft.maxLife);
+      ctx.font = `800 ${ft.size}px "Chakra Petch", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#020617';
+      ctx.fillText(ft.text, ft.x + 1.5, ft.y + 1.5);
+      ctx.fillStyle = ft.color;
+      ctx.fillText(ft.text, ft.x, ft.y);
+      ctx.restore();
+    }
+  }
+
+  // =========================================================================
+  // 19. CONTROLS (KEYBOARD, MOUSE, RIGHT-CLICK DASH, TOUCH JOYSTICK, PAUSE)
+  // =========================================================================
+  function togglePause() {
+    if (STATE.mode === 'PLAYING') {
+      STATE.mode = 'PAUSED';
+      document.getElementById('pauseModal').classList.remove('hidden');
+    } else if (STATE.mode === 'PAUSED') {
+      STATE.mode = 'PLAYING';
+      document.getElementById('pauseModal').classList.add('hidden');
+    }
+  }
+
+  window.addEventListener('keydown', e => {
+    STATE.keys[e.code] = true;
+    if (e.code === 'Space' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+      if (STATE.mode === 'PLAYING') {
+        e.preventDefault();
+        triggerDash();
+      }
+    }
+    if (e.code === 'KeyE' || e.code === 'KeyQ') {
+      if (STATE.mode === 'PLAYING') {
+        triggerUltimate();
+      }
+    }
+    if (e.code === 'KeyP' || e.code === 'Escape') {
+      if (STATE.mode === 'PLAYING' || STATE.mode === 'PAUSED') {
+        togglePause();
+      }
+    }
+    if (e.code === 'Enter' && STATE.mode === 'MATH') {
+      resumeAfterBreach();
+    }
+  });
+
+  window.addEventListener('keyup', e => {
+    STATE.keys[e.code] = false;
+  });
+
+  canvas.addEventListener('mousemove', e => {
+    STATE.mouse.x = e.clientX;
+    STATE.mouse.y = e.clientY;
+  });
+
+  canvas.addEventListener('mousedown', e => {
+    STATE.mouse.x = e.clientX;
+    STATE.mouse.y = e.clientY;
+    if (e.button === 2 && STATE.mode === 'PLAYING') {
+      triggerDash();
+    } else {
+      STATE.mouse.down = true;
+    }
+  });
+
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+  window.addEventListener('mouseup', () => {
+    STATE.mouse.down = false;
+  });
+
+  const joyZone = document.getElementById('mobileJoystickZone');
+  const joyKnob = document.getElementById('mobileJoystickKnob');
+
+  function handleJoystickMove(clientX, clientY) {
+    const rect = joyZone.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const maxR = rect.width / 2 - 16;
+    let dx = clientX - cx;
+    let dy = clientY - cy;
+    const dist = Math.hypot(dx, dy);
+    if (dist > maxR) {
+      dx = (dx / dist) * maxR;
+      dy = (dy / dist) * maxR;
+    }
+    joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+    STATE.joystick.active = true;
+    STATE.joystick.dx = dx / maxR;
+    STATE.joystick.dy = dy / maxR;
+  }
+
+  joyZone.addEventListener('touchstart', e => {
+    e.preventDefault();
+    handleJoystickMove(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+
+  joyZone.addEventListener('touchmove', e => {
+    e.preventDefault();
+    handleJoystickMove(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+
+  joyZone.addEventListener('touchend', () => {
+    STATE.joystick.active = false;
+    STATE.joystick.dx = 0;
+    STATE.joystick.dy = 0;
+    joyKnob.style.transform = 'translate(0px, 0px)';
+  });
+
+  document.getElementById('btnDashAction').addEventListener('click', triggerDash);
+  document.getElementById('btnUltAction').addEventListener('click', triggerUltimate);
+  document.getElementById('btnPauseToggle').addEventListener('click', togglePause);
+  document.getElementById('btnResumeGame').addEventListener('click', togglePause);
+  document.getElementById('btnQuitToMenu').addEventListener('click', () => {
+    document.getElementById('pauseModal').classList.add('hidden');
+    document.getElementById('hudTop').classList.add('hidden');
+    document.getElementById('hudBottomControls').classList.add('hidden');
+    document.getElementById('mobileJoystickZone').classList.add('hidden');
+    document.getElementById('titleScreen').classList.remove('hidden');
+    STATE.mode = 'TITLE';
+  });
+
+  document.getElementById('btnAimToggle').addEventListener('click', () => {
+    STATE.autoAim = !STATE.autoAim;
+    document.getElementById('hudAimMode').textContent = STATE.autoAim ? 'AUTO' : 'MOUSE';
+  });
+
+  document.getElementById('btnSoundToggle').addEventListener('click', () => {
+    sfx.enabled = !sfx.enabled;
+    document.getElementById('btnSoundToggle').textContent = sfx.enabled ? '🔊' : '🔇';
+  });
+
+  function launchGame() {
+    sfx.init();
+    const hero = OPERATIVES.find(h => h.id === selectedHeroId) || OPERATIVES[0];
+    STATE.player = createPlayer(hero);
+    STATE.weapons = [];
+    STATE.enemies = [];
+    STATE.projectiles = [];
+    STATE.enemyProjectiles = [];
+    STATE.gems = [];
+    STATE.particles = [];
+    STATE.floatingTexts = [];
+    STATE.shockwaves = [];
+    STATE.stats = { kills: 0, mathAttempted: 0, mathCorrect: 0 };
+
+    document.getElementById('hudAvatar').innerHTML = buildOperativeSVG(hero);
+    addOrMergeWeapon(hero.weapon);
+
+    document.getElementById('titleScreen').classList.add('hidden');
+    document.getElementById('endModal').classList.add('hidden');
+    document.getElementById('hudTop').classList.remove('hidden');
+    document.getElementById('hudBottomControls').classList.remove('hidden');
+
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      document.getElementById('mobileJoystickZone').classList.remove('hidden');
+    }
+
+    STATE.mode = 'PLAYING';
+    startWave(1);
+  }
+
+  document.getElementById('btnStartGame').addEventListener('click', launchGame);
+  document.getElementById('btnRestartGame').addEventListener('click', () => {
+    document.getElementById('endModal').classList.add('hidden');
+    document.getElementById('hudTop').classList.add('hidden');
+    document.getElementById('hudBottomControls').classList.add('hidden');
+    document.getElementById('mobileJoystickZone').classList.add('hidden');
+    document.getElementById('titleScreen').classList.remove('hidden');
+    STATE.mode = 'TITLE';
+  });
+
+  // =========================================================================
+  // 20. MAIN ANIMATION LOOP
+  // =========================================================================
+  let lastTimestamp = 0;
+  function gameLoop(timestamp) {
+    if (!lastTimestamp) lastTimestamp = timestamp;
+    const dt = Math.min(0.05, (timestamp - lastTimestamp) / 1000);
+    lastTimestamp = timestamp;
+
+    update(dt);
+    render();
+    requestAnimationFrame(gameLoop);
+  }
+
+  window.onload = () => {
+    requestAnimationFrame(gameLoop);
+  };
+})();
+</script>
+</body>
+</html>

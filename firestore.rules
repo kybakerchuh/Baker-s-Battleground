@@ -1,0 +1,221 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUserSaveProfile(data, userId) {
+      return data.keys().hasAll([
+          'uid',
+          'displayName',
+          'totalCorrect',
+          'totalAttempted',
+          'gamesPlayed',
+          'victories',
+          'bestGameRate',
+          'lastGameCorrect',
+          'lastGameAttempted',
+          'lastGameRate',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid',
+          'displayName',
+          'photoURL',
+          'totalCorrect',
+          'totalAttempted',
+          'gamesPlayed',
+          'victories',
+          'bestGameRate',
+          'lastGameCorrect',
+          'lastGameAttempted',
+          'lastGameRate',
+          'lastHeroId',
+          'lastTopicId',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.uid)
+        && data.uid == userId
+        && data.uid == request.auth.uid
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 100
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500))
+        && data.totalCorrect is int
+        && data.totalCorrect >= 0
+        && data.totalAttempted is int
+        && data.totalAttempted >= data.totalCorrect
+        && data.gamesPlayed is int
+        && data.gamesPlayed >= 0
+        && data.victories is int
+        && data.victories >= 0
+        && data.victories <= data.gamesPlayed
+        && data.bestGameRate is int
+        && data.bestGameRate >= 0
+        && data.bestGameRate <= 100
+        && data.lastGameCorrect is int
+        && data.lastGameCorrect >= 0
+        && data.lastGameAttempted is int
+        && data.lastGameAttempted >= data.lastGameCorrect
+        && data.lastGameRate is int
+        && data.lastGameRate >= 0
+        && data.lastGameRate <= 100
+        && (!('lastHeroId' in data) || (data.lastHeroId is string && data.lastHeroId.size() <= 40 && data.lastHeroId.matches('^[a-zA-Z0-9_\\-]+$')))
+        && (!('lastTopicId' in data) || (data.lastTopicId is string && data.lastTopicId.size() <= 40 && data.lastTopicId.matches('^[a-zA-Z0-9_\\-]+$')))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidGameRunRecord(data, userId) {
+      return data.keys().hasAll([
+          'uid',
+          'heroId',
+          'heroName',
+          'topicId',
+          'topicTitle',
+          'intensity',
+          'wave',
+          'victory',
+          'kills',
+          'correct',
+          'attempted',
+          'correctRate',
+          'playedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid',
+          'heroId',
+          'heroName',
+          'topicId',
+          'topicTitle',
+          'intensity',
+          'wave',
+          'victory',
+          'kills',
+          'correct',
+          'attempted',
+          'correctRate',
+          'playedAt'
+        ])
+        && isValidId(data.uid)
+        && data.uid == userId
+        && data.uid == request.auth.uid
+        && data.heroId is string
+        && data.heroId.size() >= 1
+        && data.heroId.size() <= 40
+        && data.heroId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.heroName is string
+        && data.heroName.size() >= 1
+        && data.heroName.size() <= 60
+        && data.topicId is string
+        && data.topicId.size() >= 1
+        && data.topicId.size() <= 40
+        && data.topicId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.topicTitle is string
+        && data.topicTitle.size() >= 1
+        && data.topicTitle.size() <= 80
+        && data.intensity in ['easy', 'medium', 'hard', 'extreme']
+        && data.wave is int
+        && data.wave >= 1
+        && data.wave <= 10
+        && data.victory is bool
+        && data.kills is int
+        && data.kills >= 0
+        && data.correct is int
+        && data.correct >= 0
+        && data.attempted is int
+        && data.attempted >= data.correct
+        && data.correctRate is int
+        && data.correctRate >= 0
+        && data.correctRate <= 100
+        && data.playedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isVerified()
+        && isValidId(userId)
+        && isOwner(userId)
+        && isValidUserSaveProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(userId)
+        && isOwner(userId)
+        && isValidUserSaveProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action 1: Update profile/preferences only
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'lastHeroId', 'lastTopicId', 'updatedAt'])
+          ||
+          // Action 2: Sync question / game accuracy progress monotonically
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'displayName',
+              'photoURL',
+              'totalCorrect',
+              'totalAttempted',
+              'gamesPlayed',
+              'victories',
+              'bestGameRate',
+              'lastGameCorrect',
+              'lastGameAttempted',
+              'lastGameRate',
+              'lastHeroId',
+              'lastTopicId',
+              'updatedAt'
+            ])
+            && incoming().totalCorrect >= existing().totalCorrect
+            && incoming().totalAttempted >= existing().totalAttempted
+            && incoming().gamesPlayed >= existing().gamesPlayed
+            && incoming().victories >= existing().victories
+          )
+        );
+      allow delete: if false;
+
+      match /games/{gameId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(gameId) && isOwner(userId);
+        allow list: if isSignedIn() && isOwner(userId) && resource.data.uid == request.auth.uid;
+        allow create: if isVerified()
+          && isValidId(userId)
+          && isValidId(gameId)
+          && isOwner(userId)
+          && isValidGameRunRecord(incoming(), userId)
+          && incoming().playedAt == request.time
+          && exists(/databases/$(database)/documents/users/$(userId));
+        allow update, delete: if false;
+      }
+    }
+  }
+}

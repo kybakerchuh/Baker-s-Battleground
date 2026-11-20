@@ -1,0 +1,189 @@
+{
+  "entities": {
+    "UserSaveProfile": {
+      "title": "UserSaveProfile",
+      "description": "Single cloud save profile per Google-authenticated player storing lifetime OST accuracy stats and unlock progress.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the save owner.",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Player display name from Google Sign-In.",
+          "maxLength": 100
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Optional avatar URL from Google Sign-In.",
+          "maxLength": 500
+        },
+        "totalCorrect": {
+          "type": "integer",
+          "description": "Cumulative OST questions answered correctly across all games."
+        },
+        "totalAttempted": {
+          "type": "integer",
+          "description": "Cumulative OST questions attempted across all games."
+        },
+        "gamesPlayed": {
+          "type": "integer",
+          "description": "Total completed or recorded runs."
+        },
+        "victories": {
+          "type": "integer",
+          "description": "Total Wave 10 victories."
+        },
+        "bestGameRate": {
+          "type": "integer",
+          "description": "Highest single-game accuracy percentage (0-100)."
+        },
+        "lastGameCorrect": {
+          "type": "integer",
+          "description": "Correct answers in the most recent recorded game."
+        },
+        "lastGameAttempted": {
+          "type": "integer",
+          "description": "Attempted questions in the most recent recorded game."
+        },
+        "lastGameRate": {
+          "type": "integer",
+          "description": "Accuracy percentage (0-100) of the most recent recorded game."
+        },
+        "lastHeroId": {
+          "type": "string",
+          "description": "ID of the last selected or played operative.",
+          "maxLength": 40,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "lastTopicId": {
+          "type": "string",
+          "description": "ID of the last selected OST Playbook topic.",
+          "maxLength": 40,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the save profile was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the save profile was last updated."
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "totalCorrect",
+        "totalAttempted",
+        "gamesPlayed",
+        "victories",
+        "bestGameRate",
+        "lastGameCorrect",
+        "lastGameAttempted",
+        "lastGameRate",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "GameRunRecord": {
+      "title": "GameRunRecord",
+      "description": "Immutable per-game accuracy and combat summary for a single run.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID.",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "heroId": {
+          "type": "string",
+          "description": "Operative ID played in this run.",
+          "maxLength": 40,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "heroName": {
+          "type": "string",
+          "description": "Operative display name.",
+          "maxLength": 60
+        },
+        "topicId": {
+          "type": "string",
+          "description": "Primary OST Playbook topic ID.",
+          "maxLength": 40,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "topicTitle": {
+          "type": "string",
+          "description": "Display label for the OST Playbook topic.",
+          "maxLength": 80
+        },
+        "intensity": {
+          "type": "string",
+          "enum": ["easy", "medium", "hard", "extreme"],
+          "description": "Wave alien intensity setting."
+        },
+        "wave": {
+          "type": "integer",
+          "description": "Highest wave reached (1-10)."
+        },
+        "victory": {
+          "type": "boolean",
+          "description": "Whether the player cleared Wave 10."
+        },
+        "kills": {
+          "type": "integer",
+          "description": "Aliens eliminated in this run."
+        },
+        "correct": {
+          "type": "integer",
+          "description": "OST questions answered correctly in this run."
+        },
+        "attempted": {
+          "type": "integer",
+          "description": "OST questions attempted in this run."
+        },
+        "correctRate": {
+          "type": "integer",
+          "description": "Correct rate percentage (0-100) for this run."
+        },
+        "playedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the run was recorded."
+        }
+      },
+      "required": [
+        "uid",
+        "heroId",
+        "heroName",
+        "topicId",
+        "topicTitle",
+        "intensity",
+        "wave",
+        "victory",
+        "kills",
+        "correct",
+        "attempted",
+        "correctRate",
+        "playedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserSaveProfile" },
+      "description": "Private single cloud save profile keyed by authenticated user UID."
+    },
+    "/users/{userId}/games/{gameId}": {
+      "schema": { "$ref": "#/entities/GameRunRecord" },
+      "description": "Private per-game run history tracking each session's correct rate."
+    }
+  }
+}
