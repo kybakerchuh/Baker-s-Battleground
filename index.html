@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Baker's Battleground — Algebra 1 X-Method Roguelite</title>
   <meta name="description" content="Survive 10 escalating waves of Level 1–10 alien species, forge Tier 4 Sovereign Gold weapons, and master 330 Algebra 1 OST Playbook questions." />
   <meta property="og:title" content="Baker's Battleground — Algebra 1 X-Method Roguelite" />
@@ -107,6 +107,261 @@
       word-break: normal;
       overflow: visible;
     }
+
+    /* ========================================================= */
+    /* MOBILE LANDSCAPE COMPACT LAYOUT (short viewports <=540px) */
+    /* ========================================================= */
+    @media (max-height: 540px) {
+      #hudTop {
+        padding: 4px max(8px, env(safe-area-inset-left)) 0 max(8px, env(safe-area-inset-right));
+        gap: 3px;
+      }
+      #hudTopBar {
+        flex-wrap: nowrap;
+        padding: 3px 8px;
+        border-radius: 12px;
+        gap: 6px;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      #hudTopBar::-webkit-scrollbar {
+        display: none;
+      }
+      #hudLeft {
+        min-width: 0;
+        flex: 0 1 175px;
+        gap: 6px;
+      }
+      #hudAvatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+      }
+      #hudHeroName {
+        font-size: 11px;
+        max-width: 72px;
+      }
+      #hudLivesPips > span {
+        width: 6px;
+        height: 7px;
+      }
+      #hudLevelBadge {
+        font-size: 9px;
+        padding: 1px 4px;
+      }
+      #hudHpWrap {
+        margin-top: 2px;
+        height: 8px;
+      }
+      #hudHpText {
+        font-size: 7.5px;
+      }
+      #hudXpWrap {
+        margin-top: 2px;
+        height: 3px;
+      }
+      #hudCenter {
+        gap: 8px;
+        margin: 0;
+        flex-shrink: 0;
+      }
+      #hudCenter .hud-divider {
+        height: 18px;
+      }
+      #hudCenter .hud-label {
+        font-size: 8px;
+        line-height: 1;
+      }
+      #hudWave,
+      #hudTimer {
+        font-size: 13px;
+        line-height: 1.05;
+      }
+      #hudWave span {
+        font-size: 10px;
+      }
+      #hudNextBreach,
+      #hudAccuracy {
+        font-size: 11px;
+        line-height: 1.05;
+      }
+      #hudAccuracyWrap {
+        display: block;
+      }
+      #hudNextBreachWrap {
+        display: none;
+      }
+      @media (min-width: 740px) {
+        #hudNextBreachWrap {
+          display: block;
+        }
+      }
+      #hudRight {
+        flex-wrap: nowrap;
+        gap: 4px;
+        margin-left: auto;
+        flex-shrink: 0;
+      }
+      #btnOpenTopicModal {
+        padding: 3px 6px;
+        border-radius: 8px;
+        font-size: 10px;
+        gap: 3px;
+      }
+      #hudTopicLabel {
+        max-width: 64px;
+      }
+      #hudDashWrap {
+        margin-right: 0;
+      }
+      #hudDashLabel {
+        display: none;
+      }
+      #hudDashPips {
+        margin-top: 0;
+        gap: 2px;
+      }
+      #hudDashPips > span {
+        width: 9px;
+        height: 6px;
+      }
+      #hudGoldWrap {
+        padding: 2px 6px;
+        border-radius: 8px;
+        gap: 3px;
+      }
+      #hudGoldWrap span:first-child {
+        font-size: 11px;
+      }
+      #hudGold {
+        font-size: 11px;
+      }
+      #btnAimToggle {
+        padding: 3px 6px;
+        border-radius: 8px;
+        font-size: 10px;
+      }
+      #btnPauseToggle,
+      #btnSoundToggle {
+        padding: 3px 6px;
+        border-radius: 8px;
+        font-size: 11px;
+      }
+      #hudWeapons {
+        padding: 2px 5px;
+        gap: 3px;
+        border-radius: 9px;
+      }
+      .hud-weapon-slot {
+        width: 26px !important;
+        height: 26px !important;
+        border-radius: 7px !important;
+        border-width: 1.5px !important;
+      }
+      .hud-weapon-slot .hud-weapon-icon {
+        font-size: 11px !important;
+      }
+      .hud-weapon-slot .hud-weapon-tier {
+        font-size: 7px !important;
+        margin-top: 1px !important;
+      }
+      #hudStatChips {
+        display: none !important;
+      }
+      #hudBossContainer {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 6px;
+        margin-top: 0;
+        max-width: 560px;
+      }
+      #hudBossContainer > div {
+        padding: 3px 8px;
+        border-radius: 9px;
+        border-width: 1px;
+      }
+      #hudBossContainer > div > div:first-child {
+        font-size: 9px;
+        margin-bottom: 2px;
+      }
+      #hudBossContainer > div > div:last-child {
+        height: 6px;
+      }
+      #hudBottomControls {
+        bottom: 8px;
+        right: max(10px, env(safe-area-inset-right));
+        gap: 8px;
+      }
+      #btnDashAction {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+      }
+      #btnDashAction span:first-child {
+        font-size: 14px;
+        line-height: 1;
+      }
+      #btnUltAction {
+        width: 58px;
+        height: 58px;
+        border-radius: 14px;
+      }
+      #btnUltAction span.text-xl {
+        font-size: 16px;
+        line-height: 1;
+      }
+      .hud-touch-hint {
+        display: none;
+      }
+      #ultStatusText {
+        font-size: 7.5px;
+        line-height: 1;
+      }
+      #mobileJoystickZone {
+        width: 88px;
+        height: 88px;
+        bottom: 8px;
+        left: max(10px, env(safe-area-inset-left));
+      }
+      #mobileJoystickKnob {
+        width: 34px;
+        height: 34px;
+      }
+      #titleScreen > div {
+        padding: 8px max(12px, env(safe-area-inset-left)) 12px max(12px, env(safe-area-inset-right));
+        gap: 8px;
+      }
+      #mathModal,
+      #upgradeModal,
+      #pauseModal,
+      #topicModal,
+      #endModal,
+      #statsModal {
+        padding: 8px;
+      }
+      #mathModal > div,
+      #upgradeModal > div,
+      #pauseModal > div,
+      #topicModal > div,
+      #endModal > div,
+      #statsModal > div {
+        padding: 12px 14px;
+        border-radius: 18px;
+      }
+      #mathModalGrid {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 10px;
+      }
+      #mathModalGrid > div:first-child {
+        grid-column: span 7 / span 7;
+      }
+      #mathModalGrid > div:last-child {
+        grid-column: span 5 / span 5;
+      }
+      #xMethodSvg {
+        max-width: 155px;
+      }
+    }
   </style>
 </head>
 <body class="bg-[#06100d] text-emerald-50 relative overflow-hidden">
@@ -118,10 +373,10 @@
   <!-- TOP TACTICAL HUD                                          -->
   <!-- ========================================================= -->
   <div id="hudTop" class="hidden fixed top-0 left-0 right-0 z-20 pointer-events-none px-3 pt-2.5 sm:px-5 sm:pt-3 flex flex-col gap-2">
-    <div class="flex flex-wrap items-center justify-between gap-2 bg-[#0a1814]/92 backdrop-blur-md border border-emerald-500/35 rounded-2xl px-3.5 py-2 shadow-2xl pointer-events-auto">
+    <div id="hudTopBar" class="flex flex-wrap items-center justify-between gap-2 bg-[#0a1814]/92 backdrop-blur-md border border-emerald-500/35 rounded-2xl px-3.5 py-2 shadow-2xl pointer-events-auto">
       
       <!-- Left: Operative Portrait, Integrity Pips, HP & XP -->
-      <div class="flex items-center gap-3 min-w-[225px] sm:min-w-[295px]">
+      <div id="hudLeft" class="flex items-center gap-3 min-w-[225px] sm:min-w-[295px]">
         <div id="hudAvatar" class="w-12 h-12 rounded-xl bg-emerald-950 border border-emerald-400/50 flex items-center justify-center overflow-hidden shrink-0 shadow-inner"></div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center justify-between gap-1.5">
@@ -132,54 +387,58 @@
             </div>
           </div>
           <!-- HP Bar -->
-          <div class="mt-1 w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-emerald-900/80 relative">
+          <div id="hudHpWrap" class="mt-1 w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-emerald-900/80 relative">
             <div id="hudHpBar" class="h-full bg-gradient-to-r from-emerald-500 to-teal-300 transition-all duration-150" style="width: 100%"></div>
             <span id="hudHpText" class="absolute inset-0 flex items-center justify-center text-[9px] font-mono-code font-bold text-white drop-shadow">115 / 115</span>
           </div>
           <!-- XP Bar -->
-          <div class="mt-1 w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-amber-900/60">
+          <div id="hudXpWrap" class="mt-1 w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-amber-900/60">
             <div id="hudXpBar" class="h-full bg-gradient-to-r from-amber-500 to-yellow-300 transition-all duration-150" style="width: 0%"></div>
           </div>
         </div>
       </div>
 
       <!-- Center: Wave / 10, Timer, Breach Countdown & Accuracy -->
-      <div class="flex items-center gap-3 sm:gap-5 mx-auto">
+      <div id="hudCenter" class="flex items-center gap-3 sm:gap-5 mx-auto">
         <div class="text-center">
-          <div class="text-[10px] uppercase tracking-wider text-emerald-400/80 font-bold">Wave <span id="hudIntensityTag" class="text-cyan-300 font-mono-code">• MED</span></div>
+          <div class="hud-label text-[10px] uppercase tracking-wider text-emerald-400/80 font-bold">Wave <span id="hudIntensityTag" class="text-cyan-300 font-mono-code">• MED</span></div>
           <div id="hudWave" class="font-display font-bold text-lg sm:text-xl text-white leading-none">1 <span class="text-xs text-emerald-400">/ 10</span></div>
         </div>
-        <div class="h-7 w-px bg-emerald-500/20"></div>
+        <div class="hud-divider h-7 w-px bg-emerald-500/20"></div>
         <div class="text-center">
-          <div class="text-[10px] uppercase tracking-wider text-amber-300/90 font-bold">Time Left</div>
+          <div class="hud-label text-[10px] uppercase tracking-wider text-amber-300/90 font-bold">Time Left</div>
           <div id="hudTimer" class="font-mono-code font-extrabold text-lg sm:text-xl text-amber-300 leading-none">02:00</div>
         </div>
-        <div class="h-7 w-px bg-emerald-500/20 hidden sm:block"></div>
-        <div class="hidden sm:block text-center">
-          <div class="text-[10px] uppercase tracking-wider text-cyan-300/80 font-bold">Next OST Breach</div>
-          <div id="hudNextBreach" class="font-mono-code font-bold text-sm text-cyan-300 leading-none">01:30</div>
+        <div id="hudNextBreachWrap" class="hidden sm:flex items-center gap-3 sm:gap-5">
+          <div class="hud-divider h-7 w-px bg-emerald-500/20"></div>
+          <div class="text-center">
+            <div class="hud-label text-[10px] uppercase tracking-wider text-cyan-300/80 font-bold">Next Breach</div>
+            <div id="hudNextBreach" class="font-mono-code font-bold text-sm text-cyan-300 leading-none">01:30</div>
+          </div>
         </div>
-        <div class="h-7 w-px bg-emerald-500/20 hidden md:block"></div>
-        <div class="hidden md:block text-center">
-          <div class="text-[10px] uppercase tracking-wider text-emerald-300/80 font-bold">OST Accuracy</div>
-          <div id="hudAccuracy" class="font-mono-code font-bold text-sm text-emerald-300 leading-none">100%</div>
+        <div id="hudAccuracyWrap" class="hidden md:flex items-center gap-3 sm:gap-5">
+          <div class="hud-divider h-7 w-px bg-emerald-500/20"></div>
+          <div class="text-center">
+            <div class="hud-label text-[10px] uppercase tracking-wider text-emerald-300/80 font-bold">Accuracy</div>
+            <div id="hudAccuracy" class="font-mono-code font-bold text-sm text-emerald-300 leading-none">100%</div>
+          </div>
         </div>
       </div>
 
       <!-- Right: Topic Switcher, Dash Pips, Scrap Gold, Aim Mode, Pause & Mute -->
-      <div class="flex flex-wrap items-center gap-2 sm:gap-2.5 ml-auto sm:ml-0">
+      <div id="hudRight" class="flex flex-wrap items-center gap-2 sm:gap-2.5 ml-auto sm:ml-0">
         <button id="btnOpenTopicModal" class="px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/50 text-xs font-bold text-amber-200 transition cursor-pointer flex items-center gap-1.5" title="Change OST Playbook Topic Mid-Game">
           <span class="text-amber-300">📘</span>
           <span id="hudTopicLabel" class="font-mono-code text-amber-200 max-w-[140px] truncate">ALL 330 MIXED</span>
           <span class="text-[10px] text-amber-300">▾</span>
         </button>
 
-        <div class="flex flex-col items-end mr-1">
-          <span class="text-[9px] uppercase tracking-wider text-cyan-300/80 font-bold">Dashes</span>
+        <div id="hudDashWrap" class="flex flex-col items-end mr-1">
+          <span id="hudDashLabel" class="text-[9px] uppercase tracking-wider text-cyan-300/80 font-bold">Dashes</span>
           <div id="hudDashPips" class="flex items-center gap-1 mt-0.5"></div>
         </div>
 
-        <div class="flex items-center gap-1.5 bg-amber-500/15 border border-amber-400/40 rounded-xl px-2.5 py-1.5">
+        <div id="hudGoldWrap" class="flex items-center gap-1.5 bg-amber-500/15 border border-amber-400/40 rounded-xl px-2.5 py-1.5">
           <span class="text-amber-400 text-sm">⬡</span>
           <span id="hudGold" class="font-mono-code font-extrabold text-sm text-amber-300">30</span>
         </div>
@@ -199,7 +458,7 @@
     </div>
 
     <!-- 6-Slot Color-Tiered Weapon Armory Strip & Stat Summary -->
-    <div class="flex flex-wrap items-center justify-between gap-2">
+    <div id="hudSubRow" class="flex flex-wrap items-center justify-between gap-2">
       <div id="hudWeapons" class="flex items-center gap-1.5 bg-[#0a1814]/88 backdrop-blur-md border border-emerald-500/25 rounded-xl px-2.5 py-1.5 pointer-events-auto"></div>
       <div id="hudStatChips" class="hidden lg:flex items-center gap-2 bg-[#0a1814]/88 backdrop-blur-md border border-emerald-500/25 rounded-xl px-3 py-1.5 text-[11px] font-mono-code text-emerald-200"></div>
     </div>
@@ -232,7 +491,7 @@
     <button id="btnDashAction" class="w-16 h-16 rounded-2xl bg-cyan-950/90 hover:bg-cyan-900 active:scale-95 border-2 border-cyan-400/75 shadow-lg shadow-cyan-500/20 flex flex-col items-center justify-center text-cyan-200 transition cursor-pointer">
       <span class="text-lg font-extrabold">⚡</span>
       <span class="text-[10px] font-display font-bold tracking-wider">DASH</span>
-      <span class="text-[9px] font-mono-code text-cyan-300/80">[SPACE]</span>
+      <span class="hud-touch-hint text-[9px] font-mono-code text-cyan-300/80">[SPACE]</span>
     </button>
     <button id="btnUltAction" class="w-20 h-20 rounded-2xl bg-amber-950/90 hover:bg-amber-900 active:scale-95 border-2 border-amber-400/85 shadow-lg shadow-amber-500/25 flex flex-col items-center justify-center text-amber-200 transition cursor-pointer relative overflow-hidden">
       <div id="ultCooldownOverlay" class="absolute inset-x-0 bottom-0 bg-amber-400/25 transition-all duration-100" style="height: 100%"></div>
@@ -562,7 +821,7 @@
         <span id="mathModeLabel" class="text-xs font-mono-code font-bold text-emerald-300">ALL 330 MIXED • Q 1/330</span>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+      <div id="mathModalGrid" class="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
         <!-- Left 7 Cols: Problem & Choices -->
         <div class="md:col-span-7 flex flex-col gap-3 min-w-0">
           <div class="bg-[#06100d] border border-emerald-500/30 rounded-2xl p-4">

@@ -2465,15 +2465,15 @@ export function initGame(): void {
       if (w) {
         const meta = WEAPON_CATALOG[w.id];
         const tStyle = TIER_STYLES[w.tier] || TIER_STYLES[1];
-        slot.className = `w-10 h-10 rounded-xl border-2 ${tStyle.borderClass} flex flex-col items-center justify-center relative`;
+        slot.className = `hud-weapon-slot w-10 h-10 rounded-xl border-2 ${tStyle.borderClass} flex flex-col items-center justify-center relative`;
         slot.title = `${meta.name} — ${tStyle.label}`;
         slot.innerHTML = `
-          <span class="text-sm leading-none">${meta.icon}</span>
-          <span class="text-[9px] font-mono-code font-extrabold leading-none mt-0.5">${w.tier === 4 ? '★T4' : 'T' + w.tier}</span>
+          <span class="hud-weapon-icon text-sm leading-none">${meta.icon}</span>
+          <span class="hud-weapon-tier text-[9px] font-mono-code font-extrabold leading-none mt-0.5">${w.tier === 4 ? '★T4' : 'T' + w.tier}</span>
         `;
       } else {
         slot.className =
-          'w-10 h-10 rounded-xl border border-emerald-500/15 bg-[#06100d]/60 flex items-center justify-center text-emerald-700 text-xs';
+          'hud-weapon-slot w-10 h-10 rounded-xl border border-emerald-500/15 bg-[#06100d]/60 flex items-center justify-center text-emerald-700 text-xs';
         slot.textContent = '+';
       }
       container.appendChild(slot);
@@ -2731,8 +2731,9 @@ export function initGame(): void {
     }
 
     const margin = 28;
+    const topHudOffset = STATE.height <= 540 ? 44 : 56;
     p.x = Math.max(margin, Math.min(STATE.width - margin, p.x));
-    p.y = Math.max(margin + 56, Math.min(STATE.height - margin, p.y));
+    p.y = Math.max(margin + topHudOffset, Math.min(STATE.height - margin, p.y));
 
     let nearestEnemy: EnemyEntity | null = null;
     let nearestDist = Infinity;
@@ -2850,8 +2851,9 @@ export function initGame(): void {
       }
 
       if (proj.bounce) {
+        const bounceTop = STATE.height <= 540 ? 46 : 60;
         if (proj.x < 10 || proj.x > STATE.width - 10) proj.vx *= -1;
-        if (proj.y < 60 || proj.y > STATE.height - 10) proj.vy *= -1;
+        if (proj.y < bounceTop || proj.y > STATE.height - 10) proj.vy *= -1;
       }
 
       for (const e of STATE.enemies) {
@@ -3741,7 +3743,7 @@ export function initGame(): void {
     const rect = joyZone.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
-    const maxR = rect.width / 2 - 16;
+    const maxR = Math.max(18, rect.width / 2 - rect.width * 0.16);
     let dx = clientX - cx;
     let dy = clientY - cy;
     const dist = Math.hypot(dx, dy);
