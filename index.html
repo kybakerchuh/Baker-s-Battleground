@@ -630,6 +630,41 @@
         </div>
       </div>
 
+      <!-- ALL-TIME LEADERBOARD (MOST KILLS & MOST CORRECT QUESTIONS) -->
+      <div class="bg-[#0a1814] border border-amber-400/35 rounded-3xl p-4 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-0.5 rounded-lg bg-amber-500/20 border border-amber-400/40 text-amber-300 font-mono-code text-[11px] font-extrabold">HALL OF FAME</span>
+            <h2 class="font-display font-extrabold text-base sm:text-lg text-white tracking-wide">ALL-TIME TOP 10 LEADERBOARD</h2>
+          </div>
+          <span id="lbYourNote" class="text-[11px] font-mono-code text-cyan-300/85">Sign in with Google to post your First Name &amp; scores</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <!-- Most Enemy Kills -->
+          <div class="bg-[#06100d] border border-rose-500/30 rounded-2xl p-3">
+            <div class="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-rose-500/20">
+              <span class="font-display font-bold text-xs sm:text-sm text-rose-300 uppercase tracking-wider">💀 All-Time Most Enemy Kills</span>
+              <span class="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded bg-rose-500/15 text-rose-200 border border-rose-500/30">TOP 10</span>
+            </div>
+            <div id="lbTopKillsList" class="space-y-1 font-mono-code text-xs">
+              <div class="text-center py-4 text-emerald-300/60">Loading Top 10...</div>
+            </div>
+          </div>
+
+          <!-- Most Correct Questions Answered -->
+          <div class="bg-[#06100d] border border-emerald-500/30 rounded-2xl p-3">
+            <div class="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-emerald-500/20">
+              <span class="font-display font-bold text-xs sm:text-sm text-emerald-300 uppercase tracking-wider">✅ All-Time Most Questions Correct</span>
+              <span class="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-200 border border-emerald-500/30">TOP 10</span>
+            </div>
+            <div id="lbTopCorrectList" class="space-y-1 font-mono-code text-xs">
+              <div class="text-center py-4 text-emerald-300/60">Loading Top 10...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Main Body: Selected Operative Spotlight + All 16 Operatives Roster -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 pb-6">
         

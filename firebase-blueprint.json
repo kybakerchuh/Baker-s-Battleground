@@ -29,6 +29,10 @@
           "type": "integer",
           "description": "Cumulative OST questions attempted across all games."
         },
+        "totalKills": {
+          "type": "integer",
+          "description": "Cumulative aliens eliminated across all games."
+        },
         "gamesPlayed": {
           "type": "integer",
           "description": "Total completed or recorded runs."
@@ -174,6 +178,59 @@
         "correctRate",
         "playedAt"
       ]
+    },
+    "LeaderboardEntry": {
+      "title": "LeaderboardEntry",
+      "description": "Public PII-free all-time leaderboard standing showing player first name, cumulative kills, and cumulative correct OST questions.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the leaderboard entry owner.",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name extracted from Google account display name (PII-isolated).",
+          "maxLength": 40
+        },
+        "totalKills": {
+          "type": "integer",
+          "description": "All-time aliens eliminated across all runs."
+        },
+        "totalCorrect": {
+          "type": "integer",
+          "description": "All-time OST questions answered correctly."
+        },
+        "totalAttempted": {
+          "type": "integer",
+          "description": "All-time OST questions attempted."
+        },
+        "gamesPlayed": {
+          "type": "integer",
+          "description": "Total recorded games."
+        },
+        "victories": {
+          "type": "integer",
+          "description": "Total Wave 10 victories."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when leaderboard standing was updated."
+        }
+      },
+      "required": [
+        "uid",
+        "firstName",
+        "totalKills",
+        "totalCorrect",
+        "totalAttempted",
+        "gamesPlayed",
+        "victories",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -184,6 +241,10 @@
     "/users/{userId}/games/{gameId}": {
       "schema": { "$ref": "#/entities/GameRunRecord" },
       "description": "Private per-game run history tracking each session's correct rate."
+    },
+    "/leaderboard/{userId}": {
+      "schema": { "$ref": "#/entities/LeaderboardEntry" },
+      "description": "Public non-PII all-time leaderboard standings ranked by totalKills and totalCorrect."
     }
   }
 }

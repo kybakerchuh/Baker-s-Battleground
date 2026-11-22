@@ -6,7 +6,7 @@ import {
   getTopicMeta,
   getTopicProblems
 } from './ostProblems';
-import { CloudSaveSnapshot, firebaseSave } from './firebaseSave';
+import { CloudSaveSnapshot, LeaderboardEntry, extractFirstName, firebaseSave } from './firebaseSave';
 
 export function initGame(): void {
   // =========================================================================
@@ -869,7 +869,21 @@ export function initGame(): void {
     gameAttempted: number;
     unsyncedCorrectDelta: number;
     unsyncedAttemptedDelta: number;
+    unsyncedKillsDelta: number;
   } | null = null;
+
+  function isMobileLandscape(): boolean {
+    return STATE.height <= 540 && STATE.width > STATE.height;
+  }
+
+  function escapeHtml(raw: string): string {
+    return raw
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 
   function getLifetimeTotals(): { totalCorrect: number; totalAttempted: number; rate: number } {
     const p = latestCloudSnap.profile;
@@ -1090,6 +1104,7 @@ export function initGame(): void {
       mathCorrect: 0,
       syncedAttempted: 0,
       syncedCorrect: 0,
+      syncedKills: 0,
       unlockedThisRun: [] as string[],
       runRecorded: false
     },
@@ -1111,6 +1126,9 @@ export function initGame(): void {
     STATE.height = window.innerHeight;
     canvas.width = STATE.width;
     canvas.height = STATE.height;
+    if (STATE.player) {
+      STATE.player.radius = isMobileLandscape() ? 14 : 20;
+    }
     if (STATE.mode === 'MATH') fitMathChoiceLabels();
   }
   window.addEventListener('resize', resizeCanvas);
@@ -1368,6 +1386,80 @@ export function initGame(): void {
       }
     }
 
+    const lbYourNote = byId('lbYourNote');
+    if (snap.user) {
+      const firstName = extractFirstName(snap.user);
+      const myKills = snap.profile?.totalKills ?? 0;
+      const myCorrect = snap.profile?.totalCorrect ?? 0;
+      lbYourNote.textContent = `${firstName}: ${myKills.toLocaleString()} Kills • ${myCorrect.toLocaleString()} Correct`;
+    } else {
+      lbYourNote.textContent = 'Sign in with Google to post your First Name & scores';
+    }
+
+    const renderLbColumn = (
+      elId: string,
+      entries: LeaderboardEntry[],
+      metric: 'kills' | 'correct'
+    ): void => {
+      const container = byId(elId);
+      if (!container) return;
+      const sorted = [...(entries || [])]
+        .sort((a, b) =>
+          metric === 'kills'
+            ? b.totalKills - a.totalKills || b.totalCorrect - a.totalCorrect
+            : b.totalCorrect - a.totalCorrect || b.totalKills - a.totalKills
+        )
+        .slice(0, 10);
+
+      const myUid = snap.user?.uid || '';
+      const unit = metric === 'kills' ? 'kills' : 'correct';
+      const accentClass = metric === 'kills' ? 'text-rose-300' : 'text-emerald-300';
+
+      const rows: string[] = [];
+      for (let idx = 0; idx < 10; idx++) {
+        const rankBadge = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
+        const entry = sorted[idx];
+        if (!entry) {
+          rows.push(`
+            <div class="flex items-center justify-between gap-2 px-2.5 py-1 rounded-xl border bg-[#0a1814]/55 border-emerald-500/10 text-emerald-200/35">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-6 text-center font-extrabold shrink-0 ${idx < 3 ? 'text-sm opacity-70' : 'text-[11px]'}">${rankBadge}</span>
+                <span class="font-display text-[11px] italic truncate">Open Top 10 Slot</span>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0 text-[10px]">
+                <span>—</span>
+                <span>${unit}</span>
+              </div>
+            </div>
+          `);
+          continue;
+        }
+        const isMe = myUid !== '' && entry.uid === myUid;
+        const val = metric === 'kills' ? entry.totalKills : entry.totalCorrect;
+        rows.push(`
+          <div class="flex items-center justify-between gap-2 px-2.5 py-1 rounded-xl border ${
+            isMe
+              ? 'bg-amber-500/15 border-amber-400/60'
+              : 'bg-[#0a1814] border-emerald-500/20'
+          }">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-6 text-center font-extrabold shrink-0 ${idx < 3 ? 'text-sm' : 'text-[11px] text-emerald-300/75'}">${rankBadge}</span>
+              <span class="font-display font-bold text-white truncate">${escapeHtml(entry.firstName || 'Operative')}</span>
+              ${isMe ? '<span class="px-1.5 py-0.2 rounded bg-amber-400/25 text-amber-300 text-[9px] font-bold shrink-0">YOU</span>' : ''}
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span class="font-extrabold ${accentClass}">${val.toLocaleString()}</span>
+              <span class="text-[10px] text-emerald-200/60">${unit}</span>
+            </div>
+          </div>
+        `);
+      }
+      container.innerHTML = rows.join('');
+    };
+
+    renderLbColumn('lbTopKillsList', snap.topKillsLeaderboard, 'kills');
+    renderLbColumn('lbTopCorrectList', snap.topCorrectLeaderboard, 'correct');
+
     renderTitleRoster();
     updateSelectedHeroPanel();
   }
@@ -1416,7 +1508,7 @@ export function initGame(): void {
       hero,
       x: STATE.width / 2,
       y: STATE.height / 2,
-      radius: 20,
+      radius: isMobileLandscape() ? 14 : 20,
       facingAngle: 0,
       walkCycle: 0,
       isMoving: false,
@@ -2178,8 +2270,10 @@ export function initGame(): void {
 
       let unlockCalloutHtml = '';
       if (latestCloudSnap.user) {
+        const killsDelta = Math.max(0, STATE.stats.kills - STATE.stats.syncedKills);
         STATE.stats.syncedAttempted += 1;
         STATE.stats.syncedCorrect += 1;
+        STATE.stats.syncedKills += killsDelta;
         const projectedTotal = prevCloudCorrect + 1;
         const newlyUnlocked = OPERATIVES.filter(
           h => h.unlockThreshold && prevCloudCorrect < h.unlockThreshold && projectedTotal >= h.unlockThreshold
@@ -2192,7 +2286,7 @@ export function initGame(): void {
           });
           unlockCalloutHtml = `<div class="mt-2 px-3 py-2 rounded-xl bg-amber-500/20 border border-amber-400 text-amber-200 font-bold text-xs">★ NEW ASCENDED OPERATIVE UNLOCKED: ${newlyUnlocked.map(h => h.name).join(', ')}!</div>`;
         }
-        void firebaseSave.recordQuestionDelta(1, 1, p.hero.id, selectedTopicId);
+        void firebaseSave.recordQuestionDelta(1, 1, killsDelta, p.hero.id, selectedTopicId);
       }
 
       feedbackBox.className = 'mt-4 bg-emerald-950/75 border-2 border-emerald-400/80 rounded-2xl p-4';
@@ -2209,8 +2303,10 @@ export function initGame(): void {
     } else {
       lastAnswerCorrect = false;
       if (latestCloudSnap.user) {
+        const killsDelta = Math.max(0, STATE.stats.kills - STATE.stats.syncedKills);
         STATE.stats.syncedAttempted += 1;
-        void firebaseSave.recordQuestionDelta(0, 1, STATE.player.hero.id, selectedTopicId);
+        STATE.stats.syncedKills += killsDelta;
+        void firebaseSave.recordQuestionDelta(0, 1, killsDelta, STATE.player.hero.id, selectedTopicId);
       }
       sfx.play('wrong');
       revealXMethodDiamond(activeProblem, true);
@@ -2562,6 +2658,7 @@ export function initGame(): void {
 
     const unsyncedCorrectDelta = Math.max(0, STATE.stats.mathCorrect - STATE.stats.syncedCorrect);
     const unsyncedAttemptedDelta = Math.max(0, STATE.stats.mathAttempted - STATE.stats.syncedAttempted);
+    const unsyncedKillsDelta = Math.max(0, STATE.stats.kills - STATE.stats.syncedKills);
     const topicMeta = getTopicMeta(selectedTopicId);
 
     const payload = {
@@ -2576,12 +2673,14 @@ export function initGame(): void {
       gameCorrect: STATE.stats.mathCorrect,
       gameAttempted: STATE.stats.mathAttempted,
       unsyncedCorrectDelta,
-      unsyncedAttemptedDelta
+      unsyncedAttemptedDelta,
+      unsyncedKillsDelta
     };
 
     if (latestCloudSnap.user) {
       STATE.stats.syncedCorrect = STATE.stats.mathCorrect;
       STATE.stats.syncedAttempted = STATE.stats.mathAttempted;
+      STATE.stats.syncedKills = STATE.stats.kills;
       void firebaseSave.recordGameRun(payload);
     } else {
       pendingGuestRun = payload;
@@ -2771,9 +2870,10 @@ export function initGame(): void {
           const dmg = meta.dmg * tStyle.dmgMult * p.damageMult * (isCrit ? p.critMult : 1.0);
           const spd = meta.speed * p.projSpeedMult * (wSlot.tier === 4 ? 1.25 : 1.0);
 
+          const muzzleDist = isMobileLandscape() ? 17 : 24;
           STATE.projectiles.push({
-            x: p.x + Math.cos(ang) * 24,
-            y: p.y + Math.sin(ang) * 24,
+            x: p.x + Math.cos(ang) * muzzleDist,
+            y: p.y + Math.sin(ang) * muzzleDist,
             vx: Math.cos(ang) * spd,
             vy: Math.sin(ang) * spd,
             radius: wSlot.tier === 4 ? 8.5 : 4.5 + wSlot.tier * 0.8,
@@ -2794,7 +2894,7 @@ export function initGame(): void {
     }
 
     if (p.orbitShields > 0) {
-      const orbitR = 58;
+      const orbitR = isMobileLandscape() ? 42 : 58;
       for (let i = 0; i < p.orbitShields; i++) {
         const a = p.orbitAngle + (Math.PI * 2 * i) / p.orbitShields;
         const sx = p.x + Math.cos(a) * orbitR;
@@ -3093,6 +3193,9 @@ export function initGame(): void {
     if (!STATE.player) return;
     ctx.save();
     ctx.translate(e.x, e.y);
+    if (isMobileLandscape()) {
+      ctx.scale(0.84, 0.84);
+    }
 
     const r = e.radius;
     const angle = Math.atan2(STATE.player.y - e.y, STATE.player.x - e.x);
@@ -3281,6 +3384,10 @@ export function initGame(): void {
 
     ctx.save();
     ctx.translate(p.x, p.y);
+    const opScale = isMobileLandscape() ? 0.72 : 1.0;
+    if (opScale !== 1.0) {
+      ctx.scale(opScale, opScale);
+    }
 
     if (p.invulnTimer > 0 && Math.floor(p.invulnTimer * 20) % 2 === 0) {
       ctx.globalAlpha = 0.55;
@@ -3508,13 +3615,15 @@ export function initGame(): void {
     ctx.restore();
 
     if (p.orbitShields > 0) {
-      const orbitR = 60;
+      const opScale = isMobileLandscape() ? 0.72 : 1.0;
+      const orbitR = isMobileLandscape() ? 42 : 60;
       for (let i = 0; i < p.orbitShields; i++) {
         const a = p.orbitAngle + (Math.PI * 2 * i) / p.orbitShields;
         const sx = p.x + Math.cos(a) * orbitR;
         const sy = p.y + Math.sin(a) * orbitR;
         ctx.save();
         ctx.translate(sx, sy);
+        if (opScale !== 1.0) ctx.scale(opScale, opScale);
         ctx.rotate(a * 2);
         ctx.strokeStyle = '#fbbf24';
         ctx.lineWidth = 3.2;
@@ -3542,8 +3651,9 @@ export function initGame(): void {
 
     if (STATE.mode === 'TITLE') return;
 
+    const worldItemScale = isMobileLandscape() ? 0.82 : 1.0;
     for (const c of STATE.crates) {
-      const scale = 1 + Math.sin(c.pulse) * 0.08;
+      const scale = (1 + Math.sin(c.pulse) * 0.08) * worldItemScale;
       ctx.save();
       ctx.translate(c.x, c.y);
       ctx.scale(scale, scale);
@@ -3569,6 +3679,7 @@ export function initGame(): void {
     for (const g of STATE.gems) {
       ctx.save();
       ctx.translate(g.x, g.y);
+      if (worldItemScale !== 1.0) ctx.scale(worldItemScale, worldItemScale);
       ctx.fillStyle = g.isBoss ? '#fbbf24' : '#34d399';
       ctx.beginPath();
       const r = g.isBoss ? 9 : 5.5;
@@ -3606,6 +3717,7 @@ export function initGame(): void {
     for (const proj of STATE.projectiles) {
       ctx.save();
       ctx.translate(proj.x, proj.y);
+      if (worldItemScale !== 1.0) ctx.scale(worldItemScale, worldItemScale);
       if (proj.isGold) {
         ctx.shadowColor = '#fbbf24';
         ctx.shadowBlur = 14;
@@ -3838,6 +3950,7 @@ export function initGame(): void {
       mathCorrect: 0,
       syncedAttempted: 0,
       syncedCorrect: 0,
+      syncedKills: 0,
       unlockedThisRun: [],
       runRecorded: false
     };

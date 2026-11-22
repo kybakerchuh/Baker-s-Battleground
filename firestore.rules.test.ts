@@ -1,5 +1,5 @@
 // Security specification verification cases for Firestore Security Rules
-// Maps each Dirty Dozen attack vector against /users/{userId} and /users/{userId}/games/{gameId}
+// Covers /users/{userId}, /users/{userId}/games/{gameId}, and /leaderboard/{userId}
 
 export interface DirtyDozenCase {
   id: number;
@@ -13,19 +13,19 @@ export interface DirtyDozenCase {
 export const DIRTY_DOZEN_TESTS: DirtyDozenCase[] = [
   {
     id: 1,
-    name: 'Unauthenticated Read/Write',
+    name: 'Unauthenticated Read/Write on Private Profile',
     targetPath: '/users/userA',
     operation: 'get',
     expectedResult: 'PERMISSION_DENIED',
-    description: 'Reject when request.auth is null.'
+    description: 'Reject when request.auth is null on private /users/{userId}.'
   },
   {
     id: 2,
     name: 'Unverified Email Token',
-    targetPath: '/users/userA',
+    targetPath: '/leaderboard/userA',
     operation: 'create',
     expectedResult: 'PERMISSION_DENIED',
-    description: 'Reject when request.auth.token.email_verified is false.'
+    description: 'Reject writes when request.auth.token.email_verified is false.'
   },
   {
     id: 3,
@@ -37,7 +37,7 @@ export const DIRTY_DOZEN_TESTS: DirtyDozenCase[] = [
   },
   {
     id: 4,
-    name: 'User Collection List Scraping',
+    name: 'Private User Collection List Scraping',
     targetPath: '/users',
     operation: 'list',
     expectedResult: 'PERMISSION_DENIED',
@@ -45,19 +45,19 @@ export const DIRTY_DOZEN_TESTS: DirtyDozenCase[] = [
   },
   {
     id: 5,
-    name: 'UID Spoofing on Create',
-    targetPath: '/users/userA',
+    name: 'Cross-Owner Leaderboard Write / UID Spoofing',
+    targetPath: '/leaderboard/userA',
     operation: 'create',
     expectedResult: 'PERMISSION_DENIED',
-    description: 'Reject when incoming().uid != request.auth.uid.'
+    description: 'Reject userB writing /leaderboard/userA or incoming().uid != request.auth.uid.'
   },
   {
     id: 6,
-    name: 'Shadow Ghost Field Injection',
-    targetPath: '/users/userA',
+    name: 'Shadow Ghost Field & PII Injection',
+    targetPath: '/leaderboard/userA',
     operation: 'update',
     expectedResult: 'PERMISSION_DENIED',
-    description: 'Reject unallowlisted keys via hasOnly() checks.'
+    description: 'Reject unexpected or PII fields (email, isAdmin, photoURL) in /leaderboard.'
   },
   {
     id: 7,
@@ -70,41 +70,41 @@ export const DIRTY_DOZEN_TESTS: DirtyDozenCase[] = [
   {
     id: 8,
     name: 'Fake Client Timestamp',
-    targetPath: '/users/userA',
+    targetPath: '/leaderboard/userA',
     operation: 'create',
     expectedResult: 'PERMISSION_DENIED',
-    description: 'Reject when createdAt != request.time or updatedAt != request.time.'
+    description: 'Reject when updatedAt != request.time.'
   },
   {
     id: 9,
     name: 'ID & String Length Poisoning',
-    targetPath: '/users/userA/games/' + 'x'.repeat(200),
+    targetPath: '/leaderboard/' + 'x'.repeat(200),
     operation: 'create',
     expectedResult: 'PERMISSION_DENIED',
-    description: 'Reject IDs > 128 chars or oversized string fields.'
+    description: 'Reject IDs > 128 chars or firstName > 40 chars.'
   },
   {
     id: 10,
-    name: 'Invalid Counter / Rate Bounds',
-    targetPath: '/users/userA',
+    name: 'Invalid / Decreasing Counter Bounds',
+    targetPath: '/leaderboard/userA',
     operation: 'update',
     expectedResult: 'PERMISSION_DENIED',
-    description: 'Reject negative stats, totalCorrect > totalAttempted, or rate > 100.'
+    description: 'Reject negative totalKills, decreasing scores, or totalCorrect > totalAttempted.'
   },
   {
     id: 11,
-    name: 'Orphan Game Record Create',
-    targetPath: '/users/userA/games/game1',
+    name: 'Orphan Game / Leaderboard Create',
+    targetPath: '/leaderboard/userA',
     operation: 'create',
     expectedResult: 'PERMISSION_DENIED',
-    description: 'Reject creating game record when parent /users/userA does not exist.'
+    description: 'Reject creating leaderboard/game doc without parent /users/userA existing.'
   },
   {
     id: 12,
-    name: 'Immutable Game Log Mutation',
-    targetPath: '/users/userA/games/game1',
+    name: 'Immutable Game Log & Leaderboard Delete',
+    targetPath: '/leaderboard/userA',
     operation: 'delete',
     expectedResult: 'PERMISSION_DENIED',
-    description: 'Reject updating or deleting historical game records.'
+    description: 'Reject deleting leaderboard entries or updating/deleting game records.'
   }
 ];

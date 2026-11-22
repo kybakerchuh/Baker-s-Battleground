@@ -14,7 +14,9 @@ import {
   getDoc,
   getDocFromServer,
   getFirestore,
+  limit,
   onSnapshot,
+  orderBy,
   query,
   runTransaction,
   serverTimestamp,
@@ -98,6 +100,7 @@ export interface UserSaveProfile {
   photoURL?: string;
   totalCorrect: number;
   totalAttempted: number;
+  totalKills?: number;
   gamesPlayed: number;
   victories: number;
   bestGameRate: number;
@@ -108,6 +111,16 @@ export interface UserSaveProfile {
   lastTopicId?: string;
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
+}
+
+export interface LeaderboardEntry {
+  uid: string;
+  firstName: string;
+  totalKills: number;
+  totalCorrect: number;
+  totalAttempted: number;
+  gamesPlayed: number;
+  victories: number;
 }
 
 export interface GameRunRecord {
@@ -132,6 +145,8 @@ export interface CloudSaveSnapshot {
   user: User | null;
   profile: UserSaveProfile | null;
   games: GameRunRecord[];
+  topKillsLeaderboard: LeaderboardEntry[];
+  topCorrectLeaderboard: LeaderboardEntry[];
   syncStatus: 'signed_out' | 'syncing' | 'synced' | 'error';
   statusMessage: string;
 }
@@ -139,6 +154,27 @@ export interface CloudSaveSnapshot {
 function sanitizeDisplayName(user: User): string {
   const raw = (user.displayName || user.email?.split('@')[0] || 'Operative').trim();
   return (raw || 'Operative').slice(0, 100);
+}
+
+export function extractFirstName(user: User): string {
+  const dn = (user.displayName || '').trim();
+  let first = '';
+  if (dn) {
+    if (dn.includes(',')) {
+      const afterComma = dn.split(',')[1]?.trim() || '';
+      first = afterComma.split(/\s+/)[0] || '';
+    } else {
+      first = dn.split(/\s+/)[0] || '';
+    }
+  }
+  if (!first && user.email) {
+    const emailPart = user.email.split('@')[0]?.split(/[._-]/)[0] || '';
+    if (emailPart) {
+      first = emailPart.charAt(0).toUpperCase() + emailPart.slice(1);
+    }
+  }
+  const cleaned = (first || 'Operative').trim().slice(0, 40);
+  return cleaned || 'Operative';
 }
 
 function sanitizePhotoUrl(user: User): string | undefined {
@@ -158,6 +194,8 @@ export class FirebaseSaveManager {
     user: null,
     profile: null,
     games: [],
+    topKillsLeaderboard: [],
+    topCorrectLeaderboard: [],
     syncStatus: 'signed_out',
     statusMessage: 'Sign in with Google to sync your lifetime accuracy & unlocks.'
   };
@@ -165,6 +203,8 @@ export class FirebaseSaveManager {
   private listeners = new Set<(snap: CloudSaveSnapshot) => void>();
   private unsubProfile: (() => void) | null = null;
   private unsubGames: (() => void) | null = null;
+  private unsubTopKills: (() => void) | null = null;
+  private unsubTopCorrect: (() => void) | null = null;
   private writeQueue: Promise<void> = Promise.resolve();
 
   constructor() {
@@ -183,6 +223,7 @@ export class FirebaseSaveManager {
       };
       this.notify();
 
+      this.ensureLeaderboardListeners();
       if (user) {
         void this.ensureProfileAndSubscribe(user);
       }
@@ -252,9 +293,58 @@ export class FirebaseSaveManager {
     await signOut(auth);
   }
 
+  private ensureLeaderboardListeners(): void {
+    if (!this.unsubTopKills) {
+      const topKillsQ = query(
+        collection(db, 'leaderboard'),
+        where('totalKills', '>=', 0),
+        orderBy('totalKills', 'desc'),
+        limit(10)
+      );
+      this.unsubTopKills = onSnapshot(
+        topKillsQ,
+        snap => {
+          const entries: LeaderboardEntry[] = snap.docs
+            .map(d => d.data() as LeaderboardEntry)
+            .sort((a, b) => b.totalKills - a.totalKills || b.totalCorrect - a.totalCorrect)
+            .slice(0, 10);
+          this.state = { ...this.state, topKillsLeaderboard: entries };
+          this.notify();
+        },
+        error => {
+          handleFirestoreError(error, OperationType.LIST, 'leaderboard');
+        }
+      );
+    }
+
+    if (!this.unsubTopCorrect) {
+      const topCorrectQ = query(
+        collection(db, 'leaderboard'),
+        where('totalCorrect', '>=', 0),
+        orderBy('totalCorrect', 'desc'),
+        limit(10)
+      );
+      this.unsubTopCorrect = onSnapshot(
+        topCorrectQ,
+        snap => {
+          const entries: LeaderboardEntry[] = snap.docs
+            .map(d => d.data() as LeaderboardEntry)
+            .sort((a, b) => b.totalCorrect - a.totalCorrect || b.totalKills - a.totalKills)
+            .slice(0, 10);
+          this.state = { ...this.state, topCorrectLeaderboard: entries };
+          this.notify();
+        },
+        error => {
+          handleFirestoreError(error, OperationType.LIST, 'leaderboard');
+        }
+      );
+    }
+  }
+
   private async ensureProfileAndSubscribe(user: User): Promise<void> {
     const userPath = `users/${user.uid}`;
     const userRef = doc(db, 'users', user.uid);
+    const lbRef = doc(db, 'leaderboard', user.uid);
 
     try {
       const existingSnap = await getDoc(userRef);
@@ -265,6 +355,7 @@ export class FirebaseSaveManager {
           displayName: sanitizeDisplayName(user),
           totalCorrect: 0,
           totalAttempted: 0,
+          totalKills: 0,
           gamesPlayed: 0,
           victories: 0,
           bestGameRate: 0,
@@ -279,6 +370,53 @@ export class FirebaseSaveManager {
         if (photo) initialProfile.photoURL = photo;
         await setDoc(userRef, initialProfile);
       }
+
+      // Ensure player's public leaderboard standing exists and reflects current totals & first name
+      await runTransaction(db, async tx => {
+        const uSnap = await tx.get(userRef);
+        const lbSnap = await tx.get(lbRef);
+        if (!uSnap.exists()) return;
+        const uData = uSnap.data() as UserSaveProfile;
+        const lbExisting = lbSnap.exists() ? (lbSnap.data() as LeaderboardEntry) : null;
+
+        const nextCorrect = Math.max(lbExisting?.totalCorrect || 0, uData.totalCorrect || 0);
+        const nextAttempted = Math.max(
+          nextCorrect,
+          lbExisting?.totalAttempted || 0,
+          uData.totalAttempted || 0
+        );
+        const nextKills = Math.max(lbExisting?.totalKills || 0, uData.totalKills || 0);
+        const nextGames = Math.max(lbExisting?.gamesPlayed || 0, uData.gamesPlayed || 0);
+        const nextVictories = Math.min(
+          nextGames,
+          Math.max(lbExisting?.victories || 0, uData.victories || 0)
+        );
+
+        const lbPayload = {
+          uid: user.uid,
+          firstName: extractFirstName(user),
+          totalKills: nextKills,
+          totalCorrect: nextCorrect,
+          totalAttempted: nextAttempted,
+          gamesPlayed: nextGames,
+          victories: nextVictories,
+          updatedAt: serverTimestamp()
+        };
+
+        if (!lbSnap.exists()) {
+          tx.set(lbRef, lbPayload);
+        } else {
+          tx.update(lbRef, {
+            firstName: lbPayload.firstName,
+            totalKills: lbPayload.totalKills,
+            totalCorrect: lbPayload.totalCorrect,
+            totalAttempted: lbPayload.totalAttempted,
+            gamesPlayed: lbPayload.gamesPlayed,
+            victories: lbPayload.victories,
+            updatedAt: serverTimestamp()
+          });
+        }
+      });
     } catch (error) {
       this.state = {
         ...this.state,
@@ -404,29 +542,42 @@ export class FirebaseSaveManager {
   public async recordQuestionDelta(
     correctDelta: number,
     attemptedDelta: number,
+    killsDelta: number,
     heroId: string,
     topicId: string
   ): Promise<void> {
     const user = auth.currentUser;
-    if (!user || (correctDelta <= 0 && attemptedDelta <= 0)) return;
+    if (!user || (correctDelta <= 0 && attemptedDelta <= 0 && killsDelta <= 0)) return;
     const safeCorrect = Math.max(0, Math.floor(correctDelta));
     const safeAttempted = Math.max(safeCorrect, Math.floor(attemptedDelta));
+    const safeKills = Math.max(0, Math.floor(killsDelta));
 
     return this.enqueueWrite(async () => {
       const userPath = `users/${user.uid}`;
       const userRef = doc(db, 'users', user.uid);
+      const lbRef = doc(db, 'leaderboard', user.uid);
       try {
-        this.state = { ...this.state, syncStatus: 'syncing', statusMessage: 'Syncing answer...' };
+        this.state = { ...this.state, syncStatus: 'syncing', statusMessage: 'Syncing progress...' };
         this.notify();
         await runTransaction(db, async tx => {
           const snap = await tx.get(userRef);
+          const lbSnap = await tx.get(lbRef);
           const photo = sanitizePhotoUrl(user);
+          const lbExisting = lbSnap.exists() ? (lbSnap.data() as LeaderboardEntry) : null;
+
+          let nextCorrect = safeCorrect;
+          let nextAttempted = safeAttempted;
+          let nextKills = safeKills;
+          let nextGames = 0;
+          let nextVictories = 0;
+
           if (!snap.exists()) {
             const createPayload: Record<string, unknown> = {
               uid: user.uid,
               displayName: sanitizeDisplayName(user),
-              totalCorrect: safeCorrect,
-              totalAttempted: safeAttempted,
+              totalCorrect: nextCorrect,
+              totalAttempted: nextAttempted,
+              totalKills: nextKills,
               gamesPlayed: 0,
               victories: 0,
               bestGameRate: 0,
@@ -440,27 +591,63 @@ export class FirebaseSaveManager {
             };
             if (photo) createPayload.photoURL = photo;
             tx.set(userRef, createPayload);
-            return;
+          } else {
+            const cur = snap.data() as UserSaveProfile;
+            nextCorrect = cur.totalCorrect + safeCorrect;
+            nextAttempted = Math.max(nextCorrect, cur.totalAttempted + safeAttempted);
+            nextKills = (cur.totalKills || 0) + safeKills;
+            nextGames = cur.gamesPlayed;
+            nextVictories = cur.victories;
+            const updatePayload: Record<string, unknown> = {
+              displayName: sanitizeDisplayName(user),
+              totalCorrect: nextCorrect,
+              totalAttempted: nextAttempted,
+              totalKills: nextKills,
+              gamesPlayed: cur.gamesPlayed,
+              victories: cur.victories,
+              bestGameRate: cur.bestGameRate,
+              lastGameCorrect: cur.lastGameCorrect,
+              lastGameAttempted: cur.lastGameAttempted,
+              lastGameRate: cur.lastGameRate,
+              lastHeroId: sanitizeIdField(heroId, 'nova'),
+              lastTopicId: sanitizeIdField(topicId, 'all'),
+              updatedAt: serverTimestamp()
+            };
+            if (photo) updatePayload.photoURL = photo;
+            tx.update(userRef, updatePayload);
           }
-          const cur = snap.data() as UserSaveProfile;
-          const nextCorrect = cur.totalCorrect + safeCorrect;
-          const nextAttempted = Math.max(nextCorrect, cur.totalAttempted + safeAttempted);
-          const updatePayload: Record<string, unknown> = {
-            displayName: sanitizeDisplayName(user),
-            totalCorrect: nextCorrect,
-            totalAttempted: nextAttempted,
-            gamesPlayed: cur.gamesPlayed,
-            victories: cur.victories,
-            bestGameRate: cur.bestGameRate,
-            lastGameCorrect: cur.lastGameCorrect,
-            lastGameAttempted: cur.lastGameAttempted,
-            lastGameRate: cur.lastGameRate,
-            lastHeroId: sanitizeIdField(heroId, 'nova'),
-            lastTopicId: sanitizeIdField(topicId, 'all'),
+
+          const lbKills = Math.max(lbExisting?.totalKills || 0, nextKills);
+          const lbCorrect = Math.max(lbExisting?.totalCorrect || 0, nextCorrect);
+          const lbAttempted = Math.max(lbCorrect, lbExisting?.totalAttempted || 0, nextAttempted);
+          const lbGames = Math.max(lbExisting?.gamesPlayed || 0, nextGames);
+          const lbVictories = Math.min(
+            lbGames,
+            Math.max(lbExisting?.victories || 0, nextVictories)
+          );
+          const lbPayload = {
+            uid: user.uid,
+            firstName: extractFirstName(user),
+            totalKills: lbKills,
+            totalCorrect: lbCorrect,
+            totalAttempted: lbAttempted,
+            gamesPlayed: lbGames,
+            victories: lbVictories,
             updatedAt: serverTimestamp()
           };
-          if (photo) updatePayload.photoURL = photo;
-          tx.update(userRef, updatePayload);
+          if (!lbSnap.exists()) {
+            tx.set(lbRef, lbPayload);
+          } else {
+            tx.update(lbRef, {
+              firstName: lbPayload.firstName,
+              totalKills: lbPayload.totalKills,
+              totalCorrect: lbPayload.totalCorrect,
+              totalAttempted: lbPayload.totalAttempted,
+              gamesPlayed: lbPayload.gamesPlayed,
+              victories: lbPayload.victories,
+              updatedAt: serverTimestamp()
+            });
+          }
         });
         this.state = { ...this.state, syncStatus: 'synced', statusMessage: 'Cloud Save Synced' };
         this.notify();
@@ -485,6 +672,7 @@ export class FirebaseSaveManager {
     gameAttempted: number;
     unsyncedCorrectDelta: number;
     unsyncedAttemptedDelta: number;
+    unsyncedKillsDelta: number;
   }): Promise<void> {
     const user = auth.currentUser;
     if (!user) return;
@@ -496,6 +684,7 @@ export class FirebaseSaveManager {
       safeUnsyncedCorrect,
       Math.floor(params.unsyncedAttemptedDelta)
     );
+    const safeUnsyncedKills = Math.max(0, Math.floor(params.unsyncedKillsDelta));
     const gameRate =
       safeGameAttempted > 0 ? Math.min(100, Math.round((safeGameCorrect / safeGameAttempted) * 100)) : 0;
     const gameId = `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -504,6 +693,7 @@ export class FirebaseSaveManager {
       const userPath = `users/${user.uid}`;
       const userRef = doc(db, 'users', user.uid);
       const gameRef = doc(db, 'users', user.uid, 'games', gameId);
+      const lbRef = doc(db, 'leaderboard', user.uid);
 
       try {
         this.state = { ...this.state, syncStatus: 'syncing', statusMessage: 'Saving game record...' };
@@ -511,7 +701,9 @@ export class FirebaseSaveManager {
 
         await runTransaction(db, async tx => {
           const snap = await tx.get(userRef);
+          const lbSnap = await tx.get(lbRef);
           const photo = sanitizePhotoUrl(user);
+          const lbExisting = lbSnap.exists() ? (lbSnap.data() as LeaderboardEntry) : null;
           const cur: UserSaveProfile = snap.exists()
             ? (snap.data() as UserSaveProfile)
             : {
@@ -519,6 +711,7 @@ export class FirebaseSaveManager {
                 displayName: sanitizeDisplayName(user),
                 totalCorrect: 0,
                 totalAttempted: 0,
+                totalKills: 0,
                 gamesPlayed: 0,
                 victories: 0,
                 bestGameRate: 0,
@@ -532,6 +725,7 @@ export class FirebaseSaveManager {
             nextTotalCorrect,
             cur.totalAttempted + safeUnsyncedAttempted
           );
+          const nextTotalKills = (cur.totalKills || 0) + safeUnsyncedKills;
           const nextGamesPlayed = cur.gamesPlayed + 1;
           const nextVictories = cur.victories + (params.victory ? 1 : 0);
           const nextBestRate = Math.min(100, Math.max(cur.bestGameRate, gameRate));
@@ -542,6 +736,7 @@ export class FirebaseSaveManager {
               displayName: sanitizeDisplayName(user),
               totalCorrect: nextTotalCorrect,
               totalAttempted: nextTotalAttempted,
+              totalKills: nextTotalKills,
               gamesPlayed: nextGamesPlayed,
               victories: nextVictories,
               bestGameRate: nextBestRate,
@@ -560,6 +755,7 @@ export class FirebaseSaveManager {
               displayName: sanitizeDisplayName(user),
               totalCorrect: nextTotalCorrect,
               totalAttempted: nextTotalAttempted,
+              totalKills: nextTotalKills,
               gamesPlayed: nextGamesPlayed,
               victories: nextVictories,
               bestGameRate: nextBestRate,
@@ -589,6 +785,38 @@ export class FirebaseSaveManager {
             correctRate: gameRate,
             playedAt: serverTimestamp()
           });
+
+          const lbKills = Math.max(lbExisting?.totalKills || 0, nextTotalKills);
+          const lbCorrect = Math.max(lbExisting?.totalCorrect || 0, nextTotalCorrect);
+          const lbAttempted = Math.max(lbCorrect, lbExisting?.totalAttempted || 0, nextTotalAttempted);
+          const lbGames = Math.max(lbExisting?.gamesPlayed || 0, nextGamesPlayed);
+          const lbVictories = Math.min(
+            lbGames,
+            Math.max(lbExisting?.victories || 0, nextVictories)
+          );
+          const lbPayload = {
+            uid: user.uid,
+            firstName: extractFirstName(user),
+            totalKills: lbKills,
+            totalCorrect: lbCorrect,
+            totalAttempted: lbAttempted,
+            gamesPlayed: lbGames,
+            victories: lbVictories,
+            updatedAt: serverTimestamp()
+          };
+          if (!lbSnap.exists()) {
+            tx.set(lbRef, lbPayload);
+          } else {
+            tx.update(lbRef, {
+              firstName: lbPayload.firstName,
+              totalKills: lbPayload.totalKills,
+              totalCorrect: lbPayload.totalCorrect,
+              totalAttempted: lbPayload.totalAttempted,
+              gamesPlayed: lbPayload.gamesPlayed,
+              victories: lbPayload.victories,
+              updatedAt: serverTimestamp()
+            });
+          }
         });
 
         this.state = { ...this.state, syncStatus: 'synced', statusMessage: 'Cloud Save Synced' };
